@@ -4,15 +4,48 @@ import type { VercelPoolClient } from '@vercel/postgres';
 // Create a function to get the DB client or a mock client
 function getDbClient() {
   try {
-    // Attempt to create a real client
-    return createClient();
+    // Check if we're in a Vercel environment with proper env vars
+    if (process.env.VERCEL && process.env.DATABASE_URL) {
+      return createClient();
+    }
+    
+    // Use from .env file in local development
+    if (process.env.DATABASE_URL) {
+      return createClient();
+    }
+    
+    // No valid DB connection available
+    throw new Error('No valid DATABASE_URL available');
   } catch (error) {
     console.warn('Database connection error, using mock client:', error);
-    // Return a mock client that does nothing
+    // Create a more robust mock client with default data
     return {
-      query: async () => ({ rows: [] }),
+      // Return default user data for queries
+      query: async (sql: string, params: any[] = []) => {
+        console.log(`Mock DB query: ${sql}`, params);
+        
+        // Return mock data based on the query
+        if (sql.includes('INSERT INTO users')) {
+          return {
+            rows: [{ id: 1, name: params[0], balance: 100 }]
+          };
+        }
+        
+        if (sql.includes('SELECT * FROM users')) {
+          return {
+            rows: [{ id: 1, name: params[0], balance: 100 }]
+          };
+        }
+        
+        // Default empty response
+        return { rows: [] };
+      },
+      // Return mock connection with same behavior
       connect: async () => ({
-        query: async () => ({ rows: [] }),
+        query: async (sql: string, params: any[] = []) => {
+          console.log(`Mock DB connection query: ${sql}`, params);
+          return { rows: [] };
+        },
         release: () => {}
       })
     };
