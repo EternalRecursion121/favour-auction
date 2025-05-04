@@ -1,14 +1,6 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/node"
-    }
-  ],
-  "projectSettings": {
-    "framework": "sveltekit"
-  },
+  "framework": "sveltekit",
+  "buildCommand": "npm run build",
   "env": {
     "ADMIN_PASSWORD": "@admin_password",
     "SECRET_KEY": "@secret_key"
