@@ -1,0 +1,1 @@
+export const ADMIN_PASSWORD = 'test_admin_password';
