@@ -1,8 +1,0 @@
-{
-  "framework": "sveltekit",
-  "buildCommand": "npm run build",
-  "env": {
-    "ADMIN_PASSWORD": "@admin_password",
-    "SECRET_KEY": "@secret_key"
-  }
-}
