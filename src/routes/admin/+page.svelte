@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import AdminPanel from '$lib/components/admin/AdminPanel.svelte';
 	import PasswordProtection from '$lib/components/admin/PasswordProtection.svelte';
 
