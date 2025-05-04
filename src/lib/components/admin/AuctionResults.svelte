@@ -1,7 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	
-	export let results = [];
+	interface AuctionResult {
+		id: number;
+		item: string;
+		seller: string;
+		buyer: string;
+		price: number;
+		auctionType: string;
+	}
+	
+	export let results: AuctionResult[] = [];
 	let exportText = '';
 	
 	onMount(() => {
@@ -31,44 +40,46 @@
 	}
 </script>
 
-<div class="bg-gray-800 rounded-lg p-6 shadow-lg">
-	<div class="flex justify-between items-center mb-4">
-		<h2 class="text-xl font-bold">Auction Results</h2>
+<div class="card">
+	<div class="card-header flex justify-between items-center">
+		<h2 class="text-xl font-bold" style="color: var(--accent-purple);">Auction Results</h2>
 		
 		<button 
-			class="py-1 px-3 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800"
+			class="py-1 px-3 text-sm font-mono badge badge-purple"
 			on:click={copyToClipboard}
 		>
-			Export Results
+			EXPORT
 		</button>
 	</div>
 	
-	{#if results.length > 0}
-		<div class="overflow-x-auto">
-			<table class="min-w-full divide-y divide-gray-700">
-				<thead>
-					<tr>
-						<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Item</th>
-						<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Seller</th>
-						<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Buyer</th>
-						<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Price</th>
-						<th class="px-4 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-gray-700">
-					{#each results as result (result.id)}
+	<div class="card-content">
+		{#if results.length > 0}
+			<div class="overflow-x-auto">
+				<table class="min-w-full divide-y" style="border-color: rgba(255, 255, 255, 0.08);">
+					<thead>
 						<tr>
-							<td class="px-4 py-3 text-sm text-gray-300">{result.item}</td>
-							<td class="px-4 py-3 text-sm text-gray-300">{result.seller}</td>
-							<td class="px-4 py-3 text-sm text-gray-300">{result.buyer}</td>
-							<td class="px-4 py-3 text-sm text-gray-300">{result.price}</td>
-							<td class="px-4 py-3 text-sm text-gray-300">{result.auctionType}</td>
+							<th class="px-4 py-3 text-left text-xs font-medium font-mono uppercase tracking-wider" style="color: var(--text-secondary);">Item</th>
+							<th class="px-4 py-3 text-left text-xs font-medium font-mono uppercase tracking-wider" style="color: var(--text-secondary);">Seller</th>
+							<th class="px-4 py-3 text-left text-xs font-medium font-mono uppercase tracking-wider" style="color: var(--text-secondary);">Buyer</th>
+							<th class="px-4 py-3 text-left text-xs font-medium font-mono uppercase tracking-wider" style="color: var(--text-secondary);">Price</th>
+							<th class="px-4 py-3 text-left text-xs font-medium font-mono uppercase tracking-wider" style="color: var(--text-secondary);">Type</th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-	{:else}
-		<p class="text-center text-gray-400 py-8">No auction results yet</p>
-	{/if}
+					</thead>
+					<tbody class="divide-y" style="border-color: rgba(255, 255, 255, 0.08);">
+						{#each results as result (result.id)}
+							<tr>
+								<td class="px-4 py-3 text-sm">{result.item}</td>
+								<td class="px-4 py-3 text-sm" style="color: var(--accent-teal);">{result.seller}</td>
+								<td class="px-4 py-3 text-sm" style="color: var(--accent-orange);">{result.buyer}</td>
+								<td class="px-4 py-3 text-sm numeric" style="color: var(--accent-purple);">{result.price}</td>
+								<td class="px-4 py-3 text-sm" style="color: var(--accent-blue);">{result.auctionType}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
+		{:else}
+			<p class="text-center py-8" style="color: var(--text-secondary);">No auction results yet</p>
+		{/if}
+	</div>
 </div>

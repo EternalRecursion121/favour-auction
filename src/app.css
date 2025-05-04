@@ -1,1 +1,156 @@
 @import 'tailwindcss';
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Theme colors */
+  --bg-primary: #1e1e1e;
+  --bg-secondary: #252526;
+  --bg-tertiary: #2d2d30;
+  --text-primary: #d4d4d4;
+  --text-secondary: #a0a0a0;
+  --accent-blue: #569cd6;
+  --accent-purple: #c586c0;
+  --accent-teal: #4ec9b0;
+  --accent-orange: #ce9178;
+  --accent-red: #f14c4c;
+  --accent-green: #6a9955;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.02em;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+/* Card styles */
+.card {
+  background-color: var(--bg-secondary);
+  border-radius: 6px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.card-header {
+  background-color: var(--bg-tertiary);
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.card-content {
+  padding: 1.25rem;
+}
+
+/* Input styles */
+input, textarea, select {
+  background-color: var(--bg-tertiary);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent-blue);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(86, 156, 214, 0.2);
+}
+
+/* Button styles */
+.btn {
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  border: none;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.btn-blue {
+  background-color: var(--accent-blue);
+  color: white;
+}
+
+.btn-blue:hover {
+  background-color: #4a85bb;
+}
+
+.btn-purple {
+  background-color: var(--accent-purple);
+  color: white;
+}
+
+.btn-purple:hover {
+  background-color: #b677b0;
+}
+
+.btn-green {
+  background-color: var(--accent-green);
+  color: white;
+}
+
+.btn-green:hover {
+  background-color: #5d8a4b;
+}
+
+/* Badge styles */
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.badge-purple {
+  background-color: var(--accent-purple);
+  color: white;
+}
+
+.badge-blue {
+  background-color: var(--accent-blue);
+  color: white;
+}
+
+.badge-green {
+  background-color: var(--accent-green);
+  color: white;
+}
+
+.badge-red {
+  background-color: var(--accent-red);
+  color: white;
+}
+
+.numeric {
+  font-family: 'JetBrains Mono', monospace;
+  font-feature-settings: "tnum" on, "lnum" on;
+}
+
+/* Animation for cursor */
+.blink {
+  animation: blink-animation 1s steps(2, start) infinite;
+}
+
+@keyframes blink-animation {
+  to {
+    visibility: hidden;
+  }
+}

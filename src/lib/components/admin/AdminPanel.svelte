@@ -20,11 +20,11 @@
 	});
 </script>
 
-<div class="min-h-screen bg-gray-900 text-white p-6">
+<div class="min-h-screen p-6" style="background-color: var(--bg-primary);">
 	<div class="max-w-7xl mx-auto">
 		<header class="mb-8">
-			<h1 class="text-3xl font-bold">Favour Auction Admin</h1>
-			<p class="text-gray-400">Control and monitor the auction progress</p>
+			<h1 class="text-3xl font-bold" style="color: var(--accent-blue);">Favour Auction Admin</h1>
+			<p style="color: var(--text-secondary);">Control and monitor the auction progress</p>
 		</header>
 		
 		<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">

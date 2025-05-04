@@ -40,9 +40,21 @@ export function handleZodError(error: ZodError): ApiError {
   };
 }
 
+// Simplified event type with just the properties we need
+export type SimpleRequestEvent = {
+  request: Request;
+  cookies: {
+    get: (key: string) => string | undefined;
+    set: (key: string, value: string, options?: any) => void;
+    delete: (key: string, options?: any) => void;
+  };
+  params?: Record<string, string>;
+  url?: URL;
+};
+
 // A utility function to handle errors in API routes
 export async function apiHandler<T>(
-  event: RequestEvent,
+  event: SimpleRequestEvent | RequestEvent,
   handler: () => Promise<T>,
   options: {
     authRequired?: boolean;

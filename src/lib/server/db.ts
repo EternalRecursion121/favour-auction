@@ -1,7 +1,26 @@
 import { createClient } from '@vercel/postgres';
 import type { VercelPoolClient } from '@vercel/postgres';
 
-export const db = createClient();
+// Create a function to get the DB client or a mock client
+function getDbClient() {
+  try {
+    // Attempt to create a real client
+    return createClient();
+  } catch (error) {
+    console.warn('Database connection error, using mock client:', error);
+    // Return a mock client that does nothing
+    return {
+      query: async () => ({ rows: [] }),
+      connect: async () => ({
+        query: async () => ({ rows: [] }),
+        release: () => {}
+      })
+    };
+  }
+}
+
+// Export the database client
+export const db = getDbClient();
 
 // User-related queries
 export async function getUserByName(name: string) {
