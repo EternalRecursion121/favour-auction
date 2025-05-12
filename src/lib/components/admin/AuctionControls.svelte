@@ -151,31 +151,41 @@
 	});
 </script>
 
-<div class="card">
+<div class="card mb-6">
 	<div class="card-header">
 		<h2 class="text-xl font-bold" style="color: var(--accent-blue);">Auction Controls</h2>
 	</div>
 
 	<div class="card-content">
 		{#if config}
-			<div class="config-info">
-				<p>Current Auction Type: {config.auctionType}</p>
-				<p>Allow New Items: {config.allowNewItems ? 'Yes' : 'No'}</p>
+			<div class="config-info bg-bg-tertiary p-4 rounded mb-4">
+				<h3 class="text-lg font-semibold mb-2" style="color: var(--accent-teal);">Current Configuration</h3>
+				<div class="grid grid-cols-2 gap-2">
+					<p><span class="text-text-secondary">Auction Type:</span></p>
+					<p class="font-mono">{config.auctionType}</p>
+					<p><span class="text-text-secondary">Allow New Items:</span></p>
+					<p class="font-mono">{config.allowNewItems ? 'Yes' : 'No'}</p>
+				</div>
 				
 				{#if config.pennyAuctionConfig}
-					<div class="penny-config">
-						<h3>Penny Auction Settings</h3>
-						<p>Increment Amount: {config.pennyAuctionConfig.incrementAmount}</p>
-						<p>Time Extension: {config.pennyAuctionConfig.timeExtension}s</p>
-						<p>Minimum Time: {config.pennyAuctionConfig.minimumTimeRemaining}s</p>
+					<div class="penny-config mt-3 pt-3 border-t border-opacity-10 border-white">
+						<h3 class="text-sm font-semibold mb-2 font-mono uppercase" style="color: var(--accent-purple);">Penny Auction Settings</h3>
+						<div class="grid grid-cols-2 gap-2 text-sm">
+							<p><span class="text-text-secondary">Increment Amount:</span></p>
+							<p class="font-mono">{config.pennyAuctionConfig.incrementAmount}</p>
+							<p><span class="text-text-secondary">Time Extension:</span></p>
+							<p class="font-mono">{config.pennyAuctionConfig.timeExtension}s</p>
+							<p><span class="text-text-secondary">Minimum Time:</span></p>
+							<p class="font-mono">{config.pennyAuctionConfig.minimumTimeRemaining}s</p>
+						</div>
 					</div>
 				{/if}
 			</div>
 		{/if}
 
-		<div class="flex items-center justify-between mb-4">
-			<span style="color: var(--text-secondary);">Items Remaining:</span>
-			<span class="font-medium text-lg numeric">{itemsRemaining}</span>
+		<div class="flex items-center justify-between mb-4 p-3 bg-bg-tertiary rounded">
+			<span class="text-sm font-mono uppercase" style="color: var(--text-secondary);">Items Remaining:</span>
+			<span class="font-medium text-lg numeric" style="color: var(--accent-orange);">{itemsRemaining}</span>
 		</div>
 
 		<div class="space-y-3">
@@ -227,8 +237,8 @@
 
 			<div>
 				<button
-					class="w-full font-mono"
-					style="background-color: var(--accent-red); color: white; border-radius: 4px; padding: 0.5rem 1rem; font-weight: 500; font-size: 14px; transition: all 0.2s ease; border: none; letter-spacing: 0.01em; opacity: {isResetting ? '0.7' : '1'};"
+					class="w-full btn font-mono"
+					style="background-color: var(--accent-red); color: white; opacity: {isResetting ? '0.7' : '1'};"
 					on:click={handleResetAuction}
 					disabled={isResetting}
 				>
@@ -251,33 +261,7 @@
 </div>
 
 <style>
-	.auction-controls {
-		padding: 1rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-	}
-	
-	.config-info {
-		margin: 1rem 0;
-	}
-	
 	.penny-config {
-		margin: 1rem 0;
-		padding: 1rem;
-		background-color: var(--bg-tertiary); 
-		border-radius: 4px;
-	}
-	
-	.controls {
-		display: flex;
-		gap: 1rem;
-		margin: 1rem 0;
-	}
-	
-	.status-message {
-		margin: 1rem 0;
-		padding: 0.5rem;
-		border-radius: 4px;
-		background-color: #e2e3e5;
+		border-color: rgba(255, 255, 255, 0.1);
 	}
 </style>

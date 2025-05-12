@@ -2,7 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { AuctionConfig, ChartDataPoint } from '$lib/types';
 	import AuctionControls from './AuctionControls.svelte';
-	import PriceChart from '../PriceChart.svelte';
+	import PriceChart from './PriceChart.svelte';
 	import AuctionResults from './AuctionResults.svelte';
 
 	let auctionConfig: AuctionConfig | null = null;
@@ -72,29 +72,44 @@
 	});
 </script>
 
-<div class="admin-panel">
-	<h2>Admin Panel</h2>
-	
+<div class="admin-panel p-4 bg-bg-primary min-h-screen">
+	<h1 class="text-2xl font-bold mb-4" style="color: var(--accent-teal);">Admin Panel</h1>
+
 	{#if error}
-		<div class="error">{error}</div>
+		<div class="error bg-red-900 text-white p-3 rounded mb-4">{error}</div>
 	{/if}
-	
-	<AuctionControls 
-		{itemsRemaining}
-	/>
-	
-	<PriceChart data={priceHistory} />
-	
-	<AuctionResults />
+
+	<div class="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
+		<div class="col-span-full lg:col-span-1">
+			<AuctionControls {itemsRemaining} />
+		</div>
+
+		<div class="col-span-full lg:col-span-1">
+			<div class="card mb-6">
+				<div class="card-header">
+					<h2 class="text-xl font-bold" style="color: var(--accent-orange);">Price History</h2>
+				</div>
+				<div class="card-content">
+					<PriceChart data={priceHistory} />
+				</div>
+			</div>
+		</div>
+
+		<div class="col-span-full">
+			<AuctionResults />
+		</div>
+	</div>
 </div>
 
 <style>
-	.admin-panel {
-		padding: 1rem;
-	}
-	
 	.error {
-		color: red;
 		margin: 1rem 0;
+	}
+
+	/* Add responsive padding */
+	@media (max-width: 768px) {
+		.admin-panel {
+			padding: 0.75rem;
+		}
 	}
 </style>
