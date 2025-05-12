@@ -1,5 +1,14 @@
 import { vi } from 'vitest';
-import { mockDbClient } from '../setup';
+
+// Create a mock for the @vercel/postgres client
+export const mockDbClient = {
+  query: vi.fn(),
+  sql: vi.fn(),
+  connect: vi.fn().mockImplementation(() => ({
+    query: vi.fn().mockImplementation((...args) => mockDbClient.query(...args)),
+    release: vi.fn()
+  }))
+};
 
 // Mock database objects
 export const mockUsers = [
@@ -8,23 +17,23 @@ export const mockUsers = [
 ];
 
 export const mockItems = [
-  { 
-    id: 1, 
-    title: 'Test Item 1', 
-    description: 'Description for test item 1', 
+  {
+    id: 1,
+    title: 'Test Item 1',
+    description: 'Description for test item 1',
     seller_id: 1,
     seller_name: 'TestUser1',
     sold: false,
     created_at: new Date().toISOString()
   },
-  { 
-    id: 2, 
-    title: 'Test Item 2', 
-    description: 'Description for test item 2', 
+  {
+    id: 2,
+    title: 'Test Item 2',
+    description: 'Description for test item 2',
     seller_id: 2,
     seller_name: 'TestUser2',
     sold: false,
-    created_at: new Date().toISOString() 
+    created_at: new Date().toISOString()
   }
 ];
 
@@ -38,26 +47,26 @@ export const mockAuctionConfig = {
 };
 
 export const mockBidHistory = [
-  { 
-    id: 1, 
-    user_id: 1, 
-    user_name: 'TestUser1', 
-    item_id: 1, 
-    amount: 10, 
-    timestamp: new Date().toISOString() 
+  {
+    id: 1,
+    user_id: 1,
+    user_name: 'TestUser1',
+    item_id: 1,
+    amount: 10,
+    timestamp: new Date().toISOString()
   },
-  { 
-    id: 2, 
-    user_id: 2, 
-    user_name: 'TestUser2', 
-    item_id: 1, 
-    amount: 15, 
-    timestamp: new Date().toISOString() 
+  {
+    id: 2,
+    user_id: 2,
+    user_name: 'TestUser2',
+    item_id: 1,
+    amount: 15,
+    timestamp: new Date().toISOString()
   }
 ];
 
 export const mockAuctionResults = [
-  { 
+  {
     id: 1,
     item_id: 1,
     item_title: 'Test Item 1',
@@ -78,10 +87,8 @@ export function setupMockQueries() {
   mockDbClient.query.mockReset();
 
   // Mock the database functions directly
-  vi.mock('$lib/server/db', async (importOriginal) => {
-    const actual = await importOriginal();
+  vi.mock('$lib/server/db', async () => {
     return {
-      ...actual,
       db: mockDbClient,
       getUserByName: vi.fn((name) => {
         const user = mockUsers.find(u => u.name === name);
@@ -98,7 +105,7 @@ export function setupMockQueries() {
       getOrCreateUser: vi.fn((name) => {
         const user = mockUsers.find(u => u.name === name);
         if (user) return Promise.resolve(user);
-        
+
         const newUser = {
           id: mockUsers.length + 1,
           name,
@@ -110,6 +117,11 @@ export function setupMockQueries() {
         const user = mockUsers.find(u => u.id === userId);
         return Promise.resolve(user ? user.balance : 0);
       }),
+      updateUserBalance: vi.fn((userId, newBalance) => {
+        return Promise.resolve({ id: userId, balance: newBalance });
+      }),
+      recordBalanceChange: vi.fn(() => Promise.resolve()),
+      getUserBalanceHistory: vi.fn(() => Promise.resolve([])),
       getAllItems: vi.fn(() => Promise.resolve(mockItems)),
       getItemById: vi.fn((id) => {
         const item = mockItems.find(i => i.id === id);
@@ -127,13 +139,9 @@ export function setupMockQueries() {
         };
         return Promise.resolve(newItem);
       }),
-      getCurrentAuctionConfig: vi.fn(() => Promise.resolve(mockAuctionConfig)),
-      getBidsForItem: vi.fn((itemId) => {
-        return Promise.resolve(mockBidHistory.filter(b => b.item_id === itemId));
-      }),
+      markItemAsSold: vi.fn(() => Promise.resolve()),
       getUnsoldItems: vi.fn(() => Promise.resolve(mockItems.filter(i => !i.sold))),
-      getAuctionResults: vi.fn(() => Promise.resolve(mockAuctionResults)),
-      resetAuction: vi.fn(() => Promise.resolve(true)),
+      getCurrentAuctionConfig: vi.fn(() => Promise.resolve(mockAuctionConfig)),
       updateAuctionConfig: vi.fn((auctionType, allowNewItems, pennyIncrement, pennyTimeExtension, pennyMinTime) => {
         const updatedConfig = {
           ...mockAuctionConfig,
@@ -145,6 +153,8 @@ export function setupMockQueries() {
         };
         return Promise.resolve(updatedConfig);
       }),
+      recordAuctionResult: vi.fn(() => Promise.resolve(mockAuctionResults[0])),
+      getAuctionResults: vi.fn(() => Promise.resolve(mockAuctionResults)),
       recordBid: vi.fn((userId, itemId, amount) => {
         const newBid = {
           id: mockBidHistory.length + 1,
@@ -155,18 +165,22 @@ export function setupMockQueries() {
           user_name: mockUsers.find(u => u.id === userId)?.name || 'Unknown'
         };
         return Promise.resolve(newBid);
-      })
+      }),
+      getBidsForItem: vi.fn((itemId) => {
+        return Promise.resolve(mockBidHistory.filter(b => b.item_id === itemId));
+      }),
+      resetAuction: vi.fn(() => Promise.resolve(true))
     };
   });
 
   // User queries
-  mockDbClient.query.mockImplementation((query, params) => {
+  mockDbClient.query.mockImplementation((query, params = []) => {
     // Get user by name
     if (query.includes('SELECT * FROM users WHERE name =')) {
       const user = mockUsers.find(u => u.name === params[0]);
       return Promise.resolve({ rows: user ? [user] : [] });
     }
-    
+
     // Create user
     if (query.includes('INSERT INTO users (name, balance) VALUES')) {
       const newUser = {
@@ -183,13 +197,25 @@ export function setupMockQueries() {
       return Promise.resolve({ rows: user ? [{ balance: user.balance }] : [] });
     }
 
+    // Update user balance
+    if (query.includes('UPDATE users SET balance =')) {
+      return Promise.resolve({
+        rows: [{ id: params[1], balance: params[0] }]
+      });
+    }
+
+    // Record balance change
+    if (query.includes('INSERT INTO balance_history')) {
+      return Promise.resolve({ rows: [] });
+    }
+
     // Get all items
     if (query.includes('SELECT items.*, users.name as seller_name FROM items')) {
       return Promise.resolve({ rows: mockItems });
     }
 
     // Get item by ID
-    if (query.includes('WHERE items.id =')) {
+    if (query.includes('SELECT items.*, users.name as seller_name FROM items JOIN users ON items.seller_id = users.id WHERE items.id =')) {
       const item = mockItems.find(i => i.id === params[0]);
       return Promise.resolve({ rows: item ? [item] : [] });
     }
@@ -206,6 +232,11 @@ export function setupMockQueries() {
         created_at: new Date().toISOString()
       };
       return Promise.resolve({ rows: [newItem] });
+    }
+
+    // Mark item as sold
+    if (query.includes('UPDATE items SET sold = TRUE WHERE id =')) {
+      return Promise.resolve({ rows: [] });
     }
 
     // Get auction config
@@ -245,6 +276,11 @@ export function setupMockQueries() {
       return Promise.resolve({ rows: [newBid] });
     }
 
+    // Record auction result
+    if (query.includes('INSERT INTO auction_history')) {
+      return Promise.resolve({ rows: [mockAuctionResults[0]] });
+    }
+
     // Get auction results
     if (query.includes('SELECT auction_history.*')) {
       return Promise.resolve({ rows: mockAuctionResults });
@@ -257,7 +293,7 @@ export function setupMockQueries() {
 
     // Reset auction
     if (query.includes('BEGIN') || query.includes('COMMIT') || query.includes('ROLLBACK')) {
-      return Promise.resolve({});
+      return Promise.resolve({ rows: [] });
     }
 
     // Default response for unmatched queries

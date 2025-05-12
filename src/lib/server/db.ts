@@ -55,6 +55,36 @@ function getDbClient() {
 // Export the database client
 export const db = getDbClient();
 
+// For tests, we expose the full mock DB client
+// This allows tests to properly mock DB responses
+export const mockClient = process.env.NODE_ENV === 'test' ? db : null;
+
+// Initialize database with required config
+export async function initializeDatabase() {
+  try {
+    // Check if auction config exists
+    const configResult = await db.query('SELECT COUNT(*) FROM auction_config');
+
+    // If no config exists, create default one
+    if (configResult.rows[0].count === '0') {
+      console.log('Creating default auction configuration...');
+      await db.query(`
+        INSERT INTO auction_config (
+          auction_type, allow_new_items, penny_increment, penny_time_extension, penny_min_time
+        ) VALUES (
+          'english', true, 1, 10, 30
+        )
+      `);
+    }
+
+    console.log('Database initialized successfully');
+    return true;
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    return false;
+  }
+}
+
 // User-related queries
 export async function getUserByName(name: string) {
   const result = await db.query('SELECT * FROM users WHERE name = $1', [name]);
@@ -160,6 +190,19 @@ export async function getUnsoldItems() {
 // Auction-related queries
 export async function getCurrentAuctionConfig() {
   const result = await db.query('SELECT * FROM auction_config ORDER BY id DESC LIMIT 1');
+
+  // Return default config if none exists
+  if (!result.rows[0]) {
+    return {
+      id: 1,
+      auction_type: 'english',
+      allow_new_items: true,
+      penny_increment: 1,
+      penny_time_extension: 10,
+      penny_min_time: 30
+    };
+  }
+
   return result.rows[0];
 }
 

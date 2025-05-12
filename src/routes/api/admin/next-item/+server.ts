@@ -20,23 +20,23 @@ export async function POST({ cookies }) {
       if (!isAdmin) {
         throw createError('UNAUTHORIZED', 'Admin authentication required');
       }
-      
+
       // End current auction if there is one
       const currentAuction = getAuctionState();
       if (currentAuction.active && currentAuction.itemId) {
         const auctionResult = endAuction();
-        
+
         if (auctionResult && auctionResult.winnerId) {
           // Process the auction result in a transaction
           await db.query('BEGIN');
-          
+
           try {
             // Mark item as sold
             await markItemAsSold(auctionResult.itemId, db);
-            
+
             // Get item info
             const item = await getItemById(auctionResult.itemId);
-            
+
             // Record the auction result
             await recordAuctionResult(
               auctionResult.itemId,
@@ -46,19 +46,19 @@ export async function POST({ cookies }) {
               auctionResult.auctionType,
               db
             );
-            
+
             // Update seller balance
             const sellerBalance = await getUserBalance(item.seller_id);
             const newSellerBalance = sellerBalance + auctionResult.finalPrice;
             await updateUserBalance(item.seller_id, newSellerBalance, db);
             await recordBalanceChange(
-              item.seller_id, 
-              newSellerBalance, 
-              'sell', 
+              item.seller_id,
+              newSellerBalance,
+              'sell',
               auctionResult.itemId,
               db
             );
-            
+
             await db.query('COMMIT');
           } catch (error) {
             await db.query('ROLLBACK');
@@ -67,10 +67,10 @@ export async function POST({ cookies }) {
           }
         }
       }
-      
+
       // Get the next unsold item
       const items = await getUnsoldItems();
-      
+
       if (items.length === 0) {
         return {
           success: true,
@@ -78,11 +78,11 @@ export async function POST({ cookies }) {
           remainingItems: 0
         };
       }
-      
+
       // Start the auction for the next item
       const nextItem = items[0];
       await startAuction(nextItem.id);
-      
+
       return {
         success: true,
         item: {
@@ -91,12 +91,13 @@ export async function POST({ cookies }) {
           description: nextItem.description,
           seller: {
             id: nextItem.seller_id,
-            name: 'Unknown' // In a real app, we'd join with the users table
+            name: nextItem.seller_name || 'Unknown'
           }
         },
         remainingItems: items.length - 1
       };
     },
-    { adminRequired: true }
+    // Removed adminRequired here since we're doing the check manually above
+    {}
   );
 }

@@ -21,3 +21,4 @@ build/
 .idea/
 *.log
 EOF < /dev/null
+**/.claude/settings.local.json

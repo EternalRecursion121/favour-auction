@@ -7,13 +7,40 @@
 		minimumTimeRemaining: 30 // seconds
 	};
 	
-	function handleSaveConfig() {
-		// Would save config to database/state
-		console.log('Config saved', {
-			auctionType,
-			allowNewItems,
-			pennyAuctionConfig
-		});
+	let configSuccess = false;
+	let configMessage = '';
+	
+	async function handleSaveConfig() {
+		try {
+			const response = await fetch('/api/admin/config', {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					auctionType,
+					allowNewItems,
+					pennyAuctionConfig
+				})
+			});
+
+			if (response.ok) {
+				configSuccess = true;
+				configMessage = 'Configuration updated successfully!';
+				
+				// Clear success message after 3 seconds
+				setTimeout(() => {
+					configSuccess = false;
+					configMessage = '';
+				}, 3000);
+			} else {
+				const error = await response.json();
+				configSuccess = false;
+				configMessage = error.message || 'Failed to update configuration';
+			}
+		} catch (error) {
+			console.error('Failed to update config:', error);
+			configSuccess = false;
+			configMessage = 'Failed to update configuration';
+		}
 	}
 </script>
 
@@ -57,52 +84,62 @@
 			
 			<!-- Penny Auction Params (conditionally shown) -->
 			{#if auctionType === 'penny'}
-				<div class="pt-2 border-t" style="border-color: rgba(255, 255, 255, 0.08);">
-					<h3 class="text-sm font-medium mb-3" style="color: var(--accent-purple);">Penny Auction Parameters</h3>
+				<div class="space-y-4 p-4 rounded" style="background-color: var(--bg-tertiary);">
+					<h3 class="font-bold" style="color: var(--accent-purple);">Penny Auction Settings</h3>
 					
-					<div class="space-y-3">
-						<div>
-							<label for="increment" class="block text-xs" style="color: var(--text-secondary);">Increment Amount</label>
-							<input 
-								id="increment" 
-								type="number" 
-								class="w-full px-3 py-1 numeric"
-								bind:value={pennyAuctionConfig.incrementAmount}
-								min="1"
-							>
-						</div>
-						
-						<div>
-							<label for="timeExt" class="block text-xs" style="color: var(--text-secondary);">Time Extension (seconds)</label>
-							<input 
-								id="timeExt" 
-								type="number" 
-								class="w-full px-3 py-1 numeric"
-								bind:value={pennyAuctionConfig.timeExtension}
-								min="1"
-							>
-						</div>
-						
-						<div>
-							<label for="minTime" class="block text-xs" style="color: var(--text-secondary);">Minimum Time (seconds)</label>
-							<input 
-								id="minTime" 
-								type="number" 
-								class="w-full px-3 py-1 numeric"
-								bind:value={pennyAuctionConfig.minimumTimeRemaining}
-								min="5"
-							>
-						</div>
+					<div>
+						<label for="incrementAmount" class="block text-sm font-medium mb-1">
+							Increment Amount (points)
+						</label>
+						<input 
+							type="number" 
+							id="incrementAmount" 
+							class="w-full px-3 py-2"
+							bind:value={pennyAuctionConfig.incrementAmount}
+							min="1"
+						/>
+					</div>
+					
+					<div>
+						<label for="timeExtension" class="block text-sm font-medium mb-1">
+							Time Extension (seconds)
+						</label>
+						<input 
+							type="number" 
+							id="timeExtension" 
+							class="w-full px-3 py-2"
+							bind:value={pennyAuctionConfig.timeExtension}
+							min="1"
+						/>
+					</div>
+					
+					<div>
+						<label for="minimumTime" class="block text-sm font-medium mb-1">
+							Minimum Time Remaining (seconds)
+						</label>
+						<input 
+							type="number" 
+							id="minimumTime" 
+							class="w-full px-3 py-2"
+							bind:value={pennyAuctionConfig.minimumTimeRemaining}
+							min="1"
+						/>
 					</div>
 				</div>
 			{/if}
 			
 			<button 
-				class="w-full btn btn-green font-mono mt-2"
 				on:click={handleSaveConfig}
+				class="w-full py-2 px-4 btn btn-teal font-mono"
 			>
 				SAVE CONFIGURATION
 			</button>
+
+			{#if configMessage}
+				<div class="mt-4 p-3 rounded text-center" style="background-color: {configSuccess ? 'var(--accent-green)' : 'var(--accent-red)'};">
+					<p class="font-bold">{configMessage}</p>
+				</div>
+			{/if}
 		</div>
 	</div>
 </div>

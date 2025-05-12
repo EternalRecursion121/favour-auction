@@ -1,11 +1,27 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { PUT } from '../+server';
 import { createRequest, createRequestEvent, createCookies } from '../../../../../test/utils';
-import { setupMockQueries } from '../../../../../test/mocks/db';
+import * as dbModule from '$lib/server/db';
 
 describe('Admin Config API Endpoint', () => {
+  // Mock the updateAuctionConfig function directly
   beforeEach(() => {
-    setupMockQueries();
+    vi.mock('$lib/server/db', async () => {
+      const actual = await vi.importActual('$lib/server/db');
+      return {
+        ...actual,
+        updateAuctionConfig: vi.fn().mockImplementation((auctionType, allowNewItems, pennyIncrement, pennyTimeExtension, pennyMinTime) => {
+          return Promise.resolve({
+            id: 1,
+            auction_type: auctionType,
+            allow_new_items: allowNewItems,
+            penny_increment: pennyIncrement || 1,
+            penny_time_extension: pennyTimeExtension || 10,
+            penny_min_time: pennyMinTime || 30
+          });
+        })
+      };
+    });
   });
 
   describe('PUT /api/admin/config', () => {

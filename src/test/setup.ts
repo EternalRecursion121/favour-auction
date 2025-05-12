@@ -5,7 +5,11 @@ import { server } from './mocks/server';
 // Create a mock for the @vercel/postgres client
 export const mockDbClient = {
   query: vi.fn(),
-  sql: vi.fn()
+  sql: vi.fn(),
+  connect: vi.fn().mockImplementation(() => ({
+    query: vi.fn().mockImplementation((...args) => mockDbClient.query(...args)),
+    release: vi.fn()
+  }))
 };
 
 // Define the global jest object that the test files use
@@ -14,12 +18,27 @@ global.jest = {
   fn: vi.fn
 };
 
+// Force the use of mock DB in tests by mocking environment
+process.env.NODE_ENV = 'test';
+
 // Mock modules
 vi.mock('@vercel/postgres', () => {
   return {
     createClient: vi.fn(() => mockDbClient)
   };
 });
+
+// Mock environment variables
+vi.mock('$env/dynamic/private', () => ({
+  env: {
+    DATABASE_URL: undefined,
+    ADMIN_PASSWORD: 'test-admin-password'
+  }
+}));
+
+// Force use of mock DB by removing environment variables
+delete process.env.DATABASE_URL;
+delete process.env.VERCEL;
 
 // We need to mock the auction module to prevent circular dependencies
 vi.mock('$lib/server/auction', () => {
@@ -79,6 +98,42 @@ vi.mock('$lib/server/auction', () => {
       return Promise.resolve(0);
     })
   };
+});
+
+// Mock db response
+mockDbClient.query.mockImplementation((query, params = []) => {
+  console.log(`Mock DB query: ${query}`, params);
+  
+  // Mock auction config
+  if (query.includes('SELECT * FROM auction_config')) {
+    return Promise.resolve({ 
+      rows: [{
+        id: 1,
+        auction_type: 'english',
+        allow_new_items: true,
+        penny_increment: 1,
+        penny_time_extension: 10,
+        penny_min_time: 30
+      }]
+    });
+  }
+  
+  // Mock update auction config
+  if (query.includes('UPDATE auction_config')) {
+    return Promise.resolve({ 
+      rows: [{
+        id: 1,
+        auction_type: params[0],
+        allow_new_items: params[1],
+        penny_increment: params[2] || 1,
+        penny_time_extension: params[3] || 10,
+        penny_min_time: params[4] || 30
+      }]
+    });
+  }
+
+  // Handle other queries with empty results
+  return Promise.resolve({ rows: [] });
 });
 
 // Setup MSW

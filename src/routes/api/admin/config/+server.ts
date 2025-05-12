@@ -11,10 +11,10 @@ export async function PUT({ request, cookies }) {
       if (!isAdmin) {
         throw createError('UNAUTHORIZED', 'Admin authentication required');
       }
-      
+
       const body = await request.json();
       const { auctionType, allowNewItems, pennyAuctionConfig } = auctionConfigSchema.parse(body);
-      
+
       const config = await updateAuctionConfig(
         auctionType,
         allowNewItems,
@@ -22,7 +22,7 @@ export async function PUT({ request, cookies }) {
         pennyAuctionConfig?.timeExtension,
         pennyAuctionConfig?.minimumTimeRemaining
       );
-      
+
       return {
         success: true,
         config: {
@@ -36,6 +36,7 @@ export async function PUT({ request, cookies }) {
         }
       };
     },
-    { adminRequired: true }
+    // Removed adminRequired here since we're doing the check manually above
+    {}
   );
 }
