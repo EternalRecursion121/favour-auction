@@ -1,12 +1,45 @@
-import { updateAuctionConfig } from '$lib/server/db';
+import { json } from '@sveltejs/kit';
+import { updateAuctionConfig, getCurrentAuctionConfig } from '$lib/server/db';
 import { apiHandler, createError } from '$lib/server/error';
 import { auctionConfigSchema } from '$lib/server/schema';
+import { requireAdmin } from '$lib/server/auth';
+import type { AuctionConfig } from '$lib/types';
 
+// GET handler to fetch current configuration
+export async function GET(event) {
+	return apiHandler(
+		event,
+		async () => {
+			await requireAdmin(event);
+			
+			const config = await getCurrentAuctionConfig();
+			if (!config || typeof config.auction_type === 'undefined') {
+				throw createError('INTERNAL_ERROR', 'Auction configuration is missing or invalid');
+			}
+
+			// Map DB fields to AuctionConfig type and return directly
+			const responseConfig: AuctionConfig = {
+				auctionType: config.auction_type,
+				allowNewItems: config.allow_new_items,
+				pennyAuctionConfig: {
+					incrementAmount: config.penny_increment,
+					timeExtension: config.penny_time_extension,
+					minimumTimeRemaining: config.penny_min_time
+				}
+			};
+			
+			return responseConfig; // Return raw config object
+		},
+		{ adminRequired: true } // Ensure admin check is enforced by handler
+	);
+}
+
+// PUT handler to update configuration
 export async function PUT({ request, cookies }) {
   return apiHandler(
     { request, cookies },
     async () => {
-      // Check admin auth
+      // Check admin auth (manual check retained for example, but could rely on apiHandler)
       const isAdmin = cookies.get('admin_authenticated') === 'true';
       if (!isAdmin) {
         throw createError('UNAUTHORIZED', 'Admin authentication required');
@@ -23,6 +56,7 @@ export async function PUT({ request, cookies }) {
         pennyAuctionConfig?.minimumTimeRemaining
       );
 
+	  // Note: PUT still returns the wrapped response, which is fine as the component only checks response.ok
       return {
         success: true,
         config: {
@@ -36,7 +70,7 @@ export async function PUT({ request, cookies }) {
         }
       };
     },
-    // Removed adminRequired here since we're doing the check manually above
-    {}
+    // Add adminRequired here for consistency, though manual check exists
+    { adminRequired: true }
   );
 }
