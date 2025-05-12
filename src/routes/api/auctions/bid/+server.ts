@@ -22,9 +22,14 @@ export async function POST({ request }) {
       
       // Process the bid based on auction type
       const bidResult = await processBid(userId, itemId, amount);
-      
-      if (!bidResult.accepted) {
-        return bidResult;
+
+      if (!bidResult || !bidResult.accepted) {
+        // Return a standardized error format
+        return {
+          success: false,
+          accepted: false,
+          message: bidResult?.message || 'Bid not accepted'
+        };
       }
       
       // Start a transaction to ensure atomicity

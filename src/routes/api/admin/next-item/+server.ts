@@ -24,11 +24,12 @@ export async function POST({ cookies }) {
       // End current auction if there is one
       const currentAuction = getAuctionState();
       if (currentAuction.active && currentAuction.itemId) {
-        const auctionResult = endAuction();
+        try {
+          const auctionResult = endAuction();
 
-        if (auctionResult && auctionResult.winnerId) {
-          // Process the auction result in a transaction
-          await db.query('BEGIN');
+          if (auctionResult && auctionResult.winnerId) {
+            // Process the auction result in a transaction
+            await db.query('BEGIN');
 
           try {
             // Mark item as sold
@@ -66,12 +67,17 @@ export async function POST({ cookies }) {
             throw createError('INTERNAL_ERROR', 'Failed to process auction result');
           }
         }
+        } catch (error) {
+          console.error('Error ending auction:', error);
+          // Don't fail the whole operation if we can't end the current auction
+          // Just log the error and continue with starting a new auction
+        }
       }
 
       // Get the next unsold item
       const items = await getUnsoldItems();
 
-      if (items.length === 0) {
+      if (!items || items.length === 0) {
         return {
           success: true,
           message: 'No more items available',
@@ -81,7 +87,13 @@ export async function POST({ cookies }) {
 
       // Start the auction for the next item
       const nextItem = items[0];
-      await startAuction(nextItem.id);
+
+      try {
+        await startAuction(nextItem.id);
+      } catch (error) {
+        console.error('Failed to start auction:', error);
+        throw createError('INTERNAL_ERROR', 'Failed to start auction for next item');
+      }
 
       return {
         success: true,

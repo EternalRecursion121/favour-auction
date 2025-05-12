@@ -28,12 +28,26 @@ export async function GET() {
       // Get winning bidder info if there is one
       let winningBidder = null;
       if (auctionState.highestBidderId) {
-        const user = await getUserByName(auctionState.highestBidderId.toString());
-        if (user) {
-          winningBidder = {
-            id: user.id,
-            name: user.name
-          };
+        try {
+          // The error might be that userById is returning a number but getUserById expects a string
+          // Fix by properly converting the ID to a string
+          const userId = typeof auctionState.highestBidderId === 'number'
+            ? auctionState.highestBidderId
+            : parseInt(auctionState.highestBidderId.toString(), 10);
+
+          // Check for NaN
+          if (!isNaN(userId)) {
+            const user = await getUserByName(userId.toString());
+            if (user) {
+              winningBidder = {
+                id: user.id,
+                name: user.name
+              };
+            }
+          }
+        } catch (error) {
+          console.error('Error fetching winning bidder:', error);
+          // Don't fail the request, just log the error and proceed without winningBidder info
         }
       }
       

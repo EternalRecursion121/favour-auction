@@ -14,13 +14,13 @@ This guide outlines the steps needed to deploy the Favour Auction application to
 
 1. Sign up for a Neon account and create a new project
 2. Find your connection string in the project dashboard
-3. Run the SQL setup script found in `DB_SETUP.md` to create the required tables:
-   - Users table
-   - Items table
-   - Auction configuration table
-   - Auction history table
-   - Bid history table
-   - Balance history table
+3. The database tables will be created automatically when the application starts:
+   - The app checks if database tables exist on startup
+   - If tables don't exist, they are created automatically
+   - Default auction configuration is created
+   - No default users are created - users must register themselves
+
+   Note: You no longer need to manually run the SQL script from DB_SETUP.md
 
 ### 2. Environment Variables
 
@@ -82,4 +82,17 @@ For future updates:
 
 - Test files have some TypeScript issues but don't affect the actual production build
 - The test suite may need DATABASE_URL set to run successfully
-EOF < /dev/null
+
+## Database Initialization Details
+
+The application's database initialization process:
+
+1. On startup, the app checks if database tables exist
+2. If tables don't exist, it creates them automatically
+3. It then checks if auction configuration exists:
+   - If not, it creates a default configuration with English auction type
+4. No default users are created during initialization
+   - This ensures a clean, empty state for the auction
+   - Users must register through the interface
+
+This automatic initialization simplifies deployment and ensures the application works correctly from the first launch.

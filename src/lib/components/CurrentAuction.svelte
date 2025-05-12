@@ -11,11 +11,12 @@
     let bidAmount = 0;
     let bidMessage = '';
     let bidStatus: 'success' | 'error' | '' = '';
-    
+    let isBidding = false;
+
     // Format auction type for display
     function formatAuctionType(type: string | null): string {
         if (!type) return '';
-        
+
         const types: Record<string, string> = {
             'english': 'English Auction (ascending)',
             'dutch': 'Dutch Auction (descending)',
@@ -24,27 +25,57 @@
             'chinese': 'Chinese Auction',
             'penny': 'Penny Auction'
         };
-        
+
         return types[type] || String(type);
     }
-    
+
     // Calculate time remaining in human-readable format
     function formatTimeRemaining(seconds: number | null | undefined): string {
         if (seconds === null || seconds === undefined) return 'Unknown';
         if (seconds <= 0) return 'Ended';
-        
+
         const minutes = Math.floor(seconds / 60);
         const remainingSeconds = seconds % 60;
-        
+
         if (minutes > 0) {
             return `${minutes}m ${remainingSeconds}s`;
         }
         return `${remainingSeconds}s`;
     }
-    
+
     async function handleBid() {
-        await onPlaceBid(bidAmount);
-        bidAmount = 0;
+        try {
+            isBidding = true;
+            bidMessage = '';
+            bidStatus = '';
+
+            // Call the provided bid handler
+            const result = await onPlaceBid(bidAmount);
+
+            // Set success message and status
+            if (result && result.success) {
+                bidStatus = 'success';
+                bidMessage = 'Bid placed successfully!';
+                bidAmount = 0; // Reset bid amount on success
+
+                // Clear message after a delay
+                setTimeout(() => {
+                    if (bidStatus === 'success') {
+                        bidMessage = '';
+                        bidStatus = '';
+                    }
+                }, 5000);
+            } else {
+                bidStatus = 'error';
+                bidMessage = result?.message || 'Failed to place bid. Please try again.';
+            }
+        } catch (error) {
+            console.error('Error placing bid:', error);
+            bidStatus = 'error';
+            bidMessage = 'Error placing bid. Please try again.';
+        } finally {
+            isBidding = false;
+        }
     }
 </script>
 
@@ -109,24 +140,29 @@
                 </div>
                 
                 <form on:submit|preventDefault={handleBid} class="flex gap-2">
-                    <input 
-                        type="number" 
-                        bind:value={bidAmount} 
+                    <input
+                        type="number"
+                        bind:value={bidAmount}
                         min={currentAuction.auctionType === 'english' ? currentAuction.currentPrice + 1 : 1}
                         class="flex-1 p-2 numeric"
-                        placeholder="Amount" 
+                        placeholder="Amount"
+                        disabled={isBidding}
                     />
-                    <button 
-                        type="submit" 
+                    <button
+                        type="submit"
                         class="py-2 px-6 btn btn-purple font-mono"
-                        disabled={!bidAmount || user.balance < bidAmount}
+                        disabled={!bidAmount || user.balance < bidAmount || isBidding}
                     >
-                        BID
+                        {#if isBidding}
+                            BIDDING...
+                        {:else}
+                            BID
+                        {/if}
                     </button>
                 </form>
-                
+
                 {#if bidMessage}
-                    <div class="mt-2 p-2 rounded text-sm" style={`background-color: ${bidStatus === 'success' ? 'var(--accent-green)' : 'var(--accent-red)'}`}>
+                    <div class="mt-2 p-2 rounded text-sm" style={`background-color: ${bidStatus === 'success' ? 'var(--accent-green)' : 'var(--accent-red)'}; color: white;`}>
                         {bidMessage}
                     </div>
                 {/if}

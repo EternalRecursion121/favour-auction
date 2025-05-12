@@ -62,9 +62,82 @@ export const mockClient = process.env.NODE_ENV === 'test' ? db : null;
 // Initialize database with required config
 export async function initializeDatabase() {
   try {
+    console.log('Starting database initialization...');
+    
+    // First check if tables exist (for first-time setup)
+    try {
+      // Try to query users table to see if our schema is set up
+      await db.query('SELECT 1 FROM users LIMIT 1');
+      console.log('Database tables exist, checking configuration...');
+    } catch (error) {
+      // Tables don't exist yet, create them
+      console.log('Database tables do not exist, creating schema...');
+      
+      await db.query(`
+        -- Users table
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          name TEXT NOT NULL,
+          balance INTEGER NOT NULL DEFAULT 100
+        );
+
+        -- Auction items table
+        CREATE TABLE IF NOT EXISTS items (
+          id SERIAL PRIMARY KEY,
+          title TEXT NOT NULL,
+          description TEXT,
+          seller_id INTEGER REFERENCES users(id),
+          sold BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Auction configuration table
+        CREATE TABLE IF NOT EXISTS auction_config (
+          id SERIAL PRIMARY KEY,
+          auction_type TEXT NOT NULL DEFAULT 'english',
+          allow_new_items BOOLEAN DEFAULT TRUE,
+          penny_increment INTEGER DEFAULT 1,
+          penny_time_extension INTEGER DEFAULT 10,
+          penny_min_time INTEGER DEFAULT 30
+        );
+
+        -- Auction history table
+        CREATE TABLE IF NOT EXISTS auction_history (
+          id SERIAL PRIMARY KEY,
+          item_id INTEGER REFERENCES items(id),
+          seller_id INTEGER REFERENCES users(id),
+          buyer_id INTEGER REFERENCES users(id),
+          price INTEGER NOT NULL,
+          auction_type TEXT NOT NULL,
+          completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Bid history table for tracking price changes
+        CREATE TABLE IF NOT EXISTS bid_history (
+          id SERIAL PRIMARY KEY,
+          item_id INTEGER REFERENCES items(id),
+          user_id INTEGER REFERENCES users(id),
+          amount INTEGER NOT NULL,
+          timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+
+        -- Balance history table
+        CREATE TABLE IF NOT EXISTS balance_history (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER REFERENCES users(id),
+          balance INTEGER NOT NULL,
+          reason TEXT NOT NULL,
+          item_id INTEGER REFERENCES items(id),
+          timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      
+      console.log('Database schema created successfully');
+    }
+    
     // Check if auction config exists
     const configResult = await db.query('SELECT COUNT(*) FROM auction_config');
-
+    
     // If no config exists, create default one
     if (configResult.rows[0].count === '0') {
       console.log('Creating default auction configuration...');
@@ -75,9 +148,15 @@ export async function initializeDatabase() {
           'english', true, 1, 10, 30
         )
       `);
+      console.log('Default auction configuration created');
+    } else {
+      console.log('Auction configuration already exists');
     }
-
-    console.log('Database initialized successfully');
+    
+    // We intentionally don't create any default users
+    // to ensure initialization is empty and users must register
+    
+    console.log('Database initialization completed successfully');
     return true;
   } catch (error) {
     console.error('Failed to initialize database:', error);
@@ -190,7 +269,7 @@ export async function getUnsoldItems() {
 // Auction-related queries
 export async function getCurrentAuctionConfig() {
   const result = await db.query('SELECT * FROM auction_config ORDER BY id DESC LIMIT 1');
-
+  
   // Return default config if none exists
   if (!result.rows[0]) {
     return {
@@ -202,7 +281,7 @@ export async function getCurrentAuctionConfig() {
       penny_min_time: 30
     };
   }
-
+  
   return result.rows[0];
 }
 
