@@ -87,6 +87,16 @@ export interface Auction {
   bidHistory: PriceHistoryEntry[];
 }
 
+// Auction result interface
+export interface AuctionResult {
+	id: number;
+	item: string;
+	seller: string;
+	buyer: string;
+	price: number;
+	auctionType: string;
+}
+
 // Auction configuration
 export interface AuctionConfig {
   auctionType: AuctionType;

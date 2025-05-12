@@ -1,14 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	
-	interface AuctionResult {
-		id: number;
-		item: string;
-		seller: string;
-		buyer: string;
-		price: number;
-		auctionType: string;
-	}
+	import type { AuctionResult } from '$lib/types';
 	
 	export let results: AuctionResult[] = [];
 	let exportText = '';

@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { onMount, createEventDispatcher } from 'svelte';
+	import { createEventDispatcher } from 'svelte';
 	import type { AuctionConfig, ApiResponse } from '$lib/types';
 
 	export let itemsRemaining = 0;
+	export let config: AuctionConfig | null = null;
 
 	const dispatch = createEventDispatcher();
 
@@ -18,21 +19,9 @@
 	let startStatus: ApiResponse<{ item?: { title: string }; remainingItems?: number }> | null = null;
 	let startMessage = '';
 
-	let config: AuctionConfig | null = null;
-
-	async function fetchConfig() {
-		try {
-			const response = await fetch('/api/admin/config');
-			config = await response.json();
-		} catch (error) {
-			console.error('Failed to fetch config:', error);
-		}
-	}
-
 	async function handleStartAuction() {
-		// Don't proceed if there are no items remaining
-		if (itemsRemaining === 0) {
-			startMessage = 'No items available to auction';
+		if (itemsRemaining === 0 && !config?.allowNewItems) {
+			startMessage = 'No items available and new items are not allowed.';
 			startStatus = null;
 			return;
 		}
@@ -51,12 +40,8 @@
 			if (result.success) {
 				startMessage = `Started auction for: ${result.data?.item?.title || 'Item'}`;
 
-				// Update the items remaining count
-				if (itemsRemaining > 0) {
-					itemsRemaining = result.data?.remainingItems || (itemsRemaining - 1);
-				}
+				itemsRemaining = result.data?.remainingItems ?? (itemsRemaining > 0 ? itemsRemaining - 1 : 0);
 
-				// Clear message after a delay
 				setTimeout(() => {
 					startMessage = '';
 				}, 3000);
@@ -87,7 +72,6 @@
 				resetMessage = 'Auction reset successfully';
 				dispatch('reset');
 				
-				// Clear message after a delay
 				setTimeout(() => {
 					resetMessage = '';
 				}, 3000);
@@ -104,9 +88,8 @@
 	}
 
 	async function handleNextItem() {
-		// Don't proceed if there are no items remaining
 		if (itemsRemaining === 0) {
-			nextMessage = 'No items available to auction';
+			nextMessage = 'No items available to process'; 
 			nextItemStatus.success = false;
 			return;
 		}
@@ -127,13 +110,10 @@
 			if (nextItemStatus.success) {
 				nextMessage = nextItemStatus.message || 'Next item processed successfully!';
 
-				// Update the items remaining count (server response doesn't contain it)
-				// Fetching latest count might be better, but decrementing is simpler for now.
 				if (itemsRemaining > 0) {
 					itemsRemaining--; 
 				}
 
-				// Clear message after a delay
 				setTimeout(() => {
 					nextMessage = '';
 				}, 3000);
@@ -148,10 +128,6 @@
 			isSelectingNext = false;
 		}
 	}
-
-	onMount(() => {
-		fetchConfig();
-	});
 </script>
 
 <div class="card mb-6">
@@ -184,6 +160,10 @@
 					</div>
 				{/if}
 			</div>
+		{:else}
+			<div class="config-info bg-bg-tertiary p-4 rounded mb-4 text-center" style="color: var(--text-secondary);">
+				Loading configuration...
+			</div>
 		{/if}
 
 		<div class="flex items-center justify-between mb-4 p-3 bg-bg-tertiary rounded">
@@ -196,13 +176,15 @@
 				<button
 					class="w-full btn btn-green font-mono mb-2"
 					on:click={handleStartAuction}
-					disabled={isStarting || itemsRemaining === 0 || !config?.allowNewItems}
+					disabled={isStarting || (!config?.allowNewItems && itemsRemaining === 0)}
 				>
 					{#if isStarting}
 						STARTING...
-					{:else if itemsRemaining === 0}
+					{:else if (!config?.allowNewItems && itemsRemaining === 0)}
 						ALL ITEMS AUCTIONED
-					{:else}
+					{:else if (config?.allowNewItems && itemsRemaining === 0)}
+						START AUCTION
+					{:else} 
 						START NEXT AUCTION
 					{/if}
 				</button>
@@ -219,6 +201,8 @@
 				>
 					{#if isSelectingNext}
 						PROCESSING...
+					{:else if itemsRemaining === 0}
+						NO ITEMS TO PROCESS
 					{:else}
 						PROCESS NEXT ITEM
 					{/if}
@@ -250,7 +234,7 @@
 
 <style>
 	.numeric {
-		font-family: 'Space Mono', monospace; /* Example: Using Space Mono for numeric display */
-		font-weight: 500; /* Adjust font weight if needed */
+		font-family: 'Space Mono', monospace;
+		font-weight: 500;
 	}
 </style>

@@ -102,7 +102,7 @@
 
 	<div class="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
 		<div class="col-span-full lg:col-span-1">
-			<AuctionControls {itemsRemaining} on:reset={handleReset} />
+			<AuctionControls {itemsRemaining} {auctionConfig} on:reset={handleReset} />
 		</div>
 
 		<div class="col-span-full lg:col-span-1">
