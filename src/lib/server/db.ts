@@ -367,11 +367,27 @@ export async function getBidsForItem(itemId: number) {
 export async function resetAuction() {
   await db.query('BEGIN');
   try {
+    // Remove all items - this is what was missing before
+    await db.query('TRUNCATE TABLE items CASCADE');
+
+    // Reset users to default balance
     await db.query('UPDATE users SET balance = 100');
-    await db.query('UPDATE items SET sold = FALSE');
+
+    // Clear all auction-related tables
     await db.query('TRUNCATE TABLE auction_history');
     await db.query('TRUNCATE TABLE bid_history');
     await db.query('TRUNCATE TABLE balance_history');
+
+    // Reset the auction_config to default
+    await db.query(`
+      UPDATE auction_config
+      SET auction_type = 'english',
+          allow_new_items = true,
+          penny_increment = 1,
+          penny_time_extension = 10,
+          penny_min_time = 30
+    `);
+
     await db.query('COMMIT');
     return true;
   } catch (error) {

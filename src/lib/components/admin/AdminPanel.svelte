@@ -4,7 +4,7 @@
 	import AuctionConfig from './AuctionConfig.svelte';
 	import PriceChart from './PriceChart.svelte';
 	import AuctionResults from './AuctionResults.svelte';
-	
+
 	let itemsRemaining = 0;
 	let currentAuctionData = {
 		type: 'english',
@@ -13,10 +13,30 @@
 		priceHistory: [],
 		results: []
 	};
-	
+
+	// Fetch the number of remaining items from the server
+	async function fetchRemainingItems() {
+		try {
+			const response = await fetch('/api/items');
+			const items = await response.json();
+
+			// Filter to only include unsold items
+			const unsoldItems = items.filter(item => !item.sold);
+			itemsRemaining = unsoldItems.length;
+		} catch (error) {
+			console.error('Error fetching items:', error);
+			itemsRemaining = 0;
+		}
+	}
+
 	onMount(() => {
-		// Would fetch initial data from database here
-		itemsRemaining = 5; // Placeholder
+		fetchRemainingItems();
+
+		// Set up a refresh interval (every 5 seconds)
+		const intervalId = setInterval(fetchRemainingItems, 5000);
+
+		// Clean up interval on component destruction
+		return () => clearInterval(intervalId);
 	});
 </script>
 
