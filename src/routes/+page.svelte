@@ -33,26 +33,38 @@
 	let userItems = 0;
 	let priceHistory: ChartDataPoint[] = [];
 	let auctionConfig: AuctionConfig | null = null;
+	let pollInterval: ReturnType<typeof setInterval>;
 
 	// Fetch the current user from localStorage or create a new one
-	onMount(async () => {
+	onMount(() => {
 		const storedName = localStorage.getItem('favourAuctionUserName');
 		if (storedName) {
 			userName = storedName;
-			await loginUser();
+			loginUser();
 		}
 
-		// Polling for auction updates
-		const pollAuction = async () => {
+		// Start polling for auction updates
+		startPolling();
+
+		return () => {
+			// Cleanup interval when component is destroyed
+			if (pollInterval) {
+				clearInterval(pollInterval);
+			}
+		};
+	});
+
+	// Start polling for updates
+	function startPolling() {
+		// Poll every 1 second for updates
+		pollInterval = setInterval(async () => {
 			if (authenticated) {
 				await fetchCurrentAuction();
 				await fetchAuctionConfig();
+				await fetchUserData();
 			}
-			setTimeout(pollAuction, 2000);
-		};
-
-		pollAuction();
-	});
+		}, 1000);
+	}
 
 	// User authentication
 	async function loginUser() {
@@ -111,13 +123,16 @@
 				// Convert bid history into price history for chart
 				if (currentAuction?.bidHistory) {
 					priceHistory = currentAuction.bidHistory.map((bid: { timestamp: string; price: number }) => ({
-						x: new Date(bid.timestamp),
+						x: new Date(bid.timestamp).getTime(),
 						y: bid.price
 					}));
+				} else {
+					priceHistory = [];
 				}
 			} else if (response.status === 404) {
 				// No active auction
 				currentAuction = null;
+				priceHistory = [];
 			}
 		} catch (error) {
 			console.error('Error fetching auction:', error);
