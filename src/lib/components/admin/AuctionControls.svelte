@@ -251,10 +251,11 @@
 </div>
 
 <style>
-	/* Removed unused styles: */
-	/* .auction-controls { ... } */
-	/* .controls { ... } */
-	/* .status-message { ... } */
+	.auction-controls {
+		padding: 1rem;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+	}
 	
 	.config-info {
 		margin: 1rem 0;
@@ -263,7 +264,20 @@
 	.penny-config {
 		margin: 1rem 0;
 		padding: 1rem;
-		background-color: var(--bg-tertiary);
+		background-color: var(--bg-tertiary); 
 		border-radius: 4px;
+	}
+	
+	.controls {
+		display: flex;
+		gap: 1rem;
+		margin: 1rem 0;
+	}
+	
+	.status-message {
+		margin: 1rem 0;
+		padding: 0.5rem;
+		border-radius: 4px;
+		background-color: #e2e3e5;
 	}
 </style>
