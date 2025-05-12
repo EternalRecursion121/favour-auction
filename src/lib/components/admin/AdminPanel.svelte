@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import type { AuctionConfig, ChartDataPoint } from '$lib/types';
+	import type { AuctionConfig, ChartDataPoint, AuctionResult } from '$lib/types';
 	import AuctionControls from './AuctionControls.svelte';
 	import PriceChart from './PriceChart.svelte';
 	import AuctionResults from './AuctionResults.svelte';
@@ -10,6 +10,7 @@
 	let error: string | null = null;
 	let pollInterval: ReturnType<typeof setInterval>;
 	let priceHistory: ChartDataPoint[] = [];
+	let auctionResults: AuctionResult[] = [];
 
 	async function fetchConfig() {
 		try {
@@ -22,6 +23,7 @@
 			
 			await fetchItemsCount();
 			await fetchPriceHistory();
+			await fetchAuctionResults();
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'An error occurred';
 		}
@@ -55,21 +57,40 @@
 		}
 	}
 
+	async function fetchAuctionResults() {
+		try {
+			const response = await fetch('/api/auctions/results');
+			if (!response.ok) {
+				if (response.status === 404) {
+					auctionResults = [];
+					return;
+				}
+				throw new Error('Failed to fetch auction results');
+			}
+			auctionResults = await response.json();
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'An error occurred fetching results';
+		}
+	}
+
 	onMount(() => {
 		fetchConfig();
-		// Poll every 1 second for items count updates
 		pollInterval = setInterval(async () => {
 			await fetchItemsCount();
 			await fetchPriceHistory();
+			await fetchAuctionResults();
 		}, 1000);
 
 		return () => {
-			// Cleanup interval when component is destroyed
 			if (pollInterval) {
 				clearInterval(pollInterval);
 			}
 		};
 	});
+
+	async function handleReset() {
+		await fetchConfig();
+	}
 </script>
 
 <div class="admin-panel p-4 bg-bg-primary min-h-screen">
@@ -81,7 +102,7 @@
 
 	<div class="grid gap-6 md:grid-cols-1 lg:grid-cols-2">
 		<div class="col-span-full lg:col-span-1">
-			<AuctionControls {itemsRemaining} />
+			<AuctionControls {itemsRemaining} on:reset={handleReset} />
 		</div>
 
 		<div class="col-span-full lg:col-span-1">
@@ -96,7 +117,7 @@
 		</div>
 
 		<div class="col-span-full">
-			<AuctionResults />
+			<AuctionResults results={auctionResults} />
 		</div>
 	</div>
 </div>

@@ -1,8 +1,10 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 	import type { AuctionConfig, ApiResponse } from '$lib/types';
 
 	export let itemsRemaining = 0;
+
+	const dispatch = createEventDispatcher();
 
 	let isResetting = false;
 	let resetStatus = { success: false, message: '' };
@@ -83,11 +85,12 @@
 
 			if (result.success) {
 				resetMessage = 'Auction reset successfully';
-				itemsRemaining = 0;
-				// Refresh item count or other data as needed
+				dispatch('reset');
+				
+				// Clear message after a delay
 				setTimeout(() => {
-					window.location.reload(); // Refresh the page to update all components
-				}, 1500);
+					resetMessage = '';
+				}, 3000);
 			} else {
 				resetMessage = result.message || 'Failed to reset auction';
 			}
@@ -198,47 +201,36 @@
 					{#if isStarting}
 						STARTING...
 					{:else if itemsRemaining === 0}
-						NO ITEMS AVAILABLE
+						ALL ITEMS AUCTIONED
 					{:else}
-						START AUCTION
+						START NEXT AUCTION
 					{/if}
 				</button>
-
 				{#if startMessage}
-					<div class="mt-2 p-2 rounded text-sm text-center mb-4"
-						 style={`background-color: ${startStatus?.success ? 'var(--accent-green)' : 'var(--accent-red)'}; color: white;`}>
-						{startMessage}
-					</div>
+					<p class="text-sm text-center mt-1 {startStatus && startStatus.success ? 'text-green-400' : 'text-red-400'}">{startMessage}</p>
 				{/if}
 			</div>
 
 			<div>
 				<button
-					class="w-full btn btn-blue font-mono"
+					class="w-full btn btn-blue font-mono mb-2"
 					on:click={handleNextItem}
 					disabled={isSelectingNext || itemsRemaining === 0}
 				>
 					{#if isSelectingNext}
-						SELECTING...
-					{:else if itemsRemaining === 0}
-						NO ITEMS AVAILABLE
+						PROCESSING...
 					{:else}
-						NEXT ITEM
+						PROCESS NEXT ITEM
 					{/if}
 				</button>
-
 				{#if nextMessage}
-					<div class="mt-2 p-2 rounded text-sm text-center"
-						 style={`background-color: ${nextItemStatus.success ? 'var(--accent-green)' : 'var(--accent-red)'}; color: white;`}>
-						{nextMessage}
-					</div>
+					<p class="text-sm text-center mt-1 {nextItemStatus.success ? 'text-green-400' : 'text-red-400'}">{nextMessage}</p>
 				{/if}
 			</div>
 
 			<div>
 				<button
-					class="w-full btn font-mono"
-					style="background-color: var(--accent-red); color: white; opacity: {isResetting ? '0.7' : '1'};"
+					class="w-full btn btn-red font-mono"
 					on:click={handleResetAuction}
 					disabled={isResetting}
 				>
@@ -248,12 +240,8 @@
 						RESET AUCTION
 					{/if}
 				</button>
-
 				{#if resetMessage}
-					<div class="mt-2 p-2 rounded text-sm text-center"
-						 style={`background-color: ${resetStatus.success ? 'var(--accent-green)' : 'var(--accent-red)'}; color: white;`}>
-						{resetMessage}
-					</div>
+					<p class="text-sm text-center mt-1 {resetStatus.success ? 'text-green-400' : 'text-red-400'}">{resetMessage}</p>
 				{/if}
 			</div>
 		</div>
@@ -261,7 +249,8 @@
 </div>
 
 <style>
-	.penny-config {
-		border-color: rgba(255, 255, 255, 0.1);
+	.numeric {
+		font-family: 'Space Mono', monospace; /* Example: Using Space Mono for numeric display */
+		font-weight: 500; /* Adjust font weight if needed */
 	}
 </style>

@@ -13,14 +13,6 @@
 	export let results: AuctionResult[] = [];
 	let exportText = '';
 	
-	onMount(() => {
-		// Sample data
-		results = [
-			{ id: 1, item: 'Guitar Lesson', seller: 'Sam', buyer: 'Alex', price: 35, auctionType: 'English' },
-			{ id: 2, item: 'Cooking Class', seller: 'Jordan', buyer: 'Taylor', price: 42, auctionType: 'Dutch' }
-		];
-	});
-	
 	function generateExport() {
 		let text = 'Favour Auction Results:\n\n';
 		
