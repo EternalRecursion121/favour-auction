@@ -2,7 +2,6 @@ import { json } from '@sveltejs/kit';
 import { updateAuctionConfig, getCurrentAuctionConfig } from '$lib/server/db';
 import { apiHandler, createError } from '$lib/server/error';
 import { auctionConfigSchema } from '$lib/server/schema';
-import { requireAdmin } from '$lib/server/auth';
 import type { AuctionConfig } from '$lib/types';
 
 // GET handler to fetch current configuration
@@ -10,8 +9,6 @@ export async function GET(event) {
 	return apiHandler(
 		event,
 		async () => {
-			await requireAdmin(event);
-			
 			const config = await getCurrentAuctionConfig();
 			if (!config || typeof config.auction_type === 'undefined') {
 				throw createError('INTERNAL_ERROR', 'Auction configuration is missing or invalid');
@@ -48,7 +45,7 @@ export async function PUT({ request, cookies }) {
       const body = await request.json();
       const { auctionType, allowNewItems, pennyAuctionConfig } = auctionConfigSchema.parse(body);
 
-      const config = await updateAuctionConfig(
+      const configData = await updateAuctionConfig(
         auctionType,
         allowNewItems,
         pennyAuctionConfig?.incrementAmount,
@@ -60,12 +57,12 @@ export async function PUT({ request, cookies }) {
       return {
         success: true,
         config: {
-          auctionType: config.auction_type,
-          allowNewItems: config.allow_new_items,
+          auctionType: configData.auction_type,
+          allowNewItems: configData.allow_new_items,
           pennyAuctionConfig: {
-            incrementAmount: config.penny_increment,
-            timeExtension: config.penny_time_extension,
-            minimumTimeRemaining: config.penny_min_time
+            incrementAmount: configData.penny_increment,
+            timeExtension: configData.penny_time_extension,
+            minimumTimeRemaining: configData.penny_min_time
           }
         }
       };

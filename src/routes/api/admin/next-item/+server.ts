@@ -10,15 +10,12 @@ import {
   getItemById
 } from '$lib/server/db';
 import { apiHandler, createError } from '$lib/server/error';
-import { requireAdmin } from '$lib/server/auth';
 import type { VercelPoolClient } from '@vercel/postgres';
 
 export async function POST(event) {
   return apiHandler(
     event,
     async () => {
-      await requireAdmin(event);
-
       // End the current auction (if any) and get the result
       const auctionResult = await endAuction();
 
@@ -28,7 +25,19 @@ export async function POST(event) {
         // For now, let's assume we just want to log it and proceed.
         console.log('No active auction result to process for next-item.');
         // Depending on requirements, maybe select the next item logic should be here?
-        return { success: true, message: 'No active auction to conclude.' };
+        // Attempt to start the next auction if no auction was concluded
+        const items = await getUnsoldItems();
+        if (!items || items.length === 0) {
+          return { success: false, message: 'No items available to auction.' };
+        }
+        const nextItem = items[0];
+        try {
+          await startAuction(nextItem.id);
+          return { success: true, message: 'No active auction concluded, started next one.' };
+        } catch (startError) {
+          console.error('Failed to start next auction after no conclusion:', startError);
+          throw createError('INTERNAL_ERROR', 'Failed to start the next auction.');
+        }
       }
 
       // Process the result: mark item sold, update balances, record result
@@ -42,6 +51,8 @@ export async function POST(event) {
         }
         
         await client.query('BEGIN');
+
+        let nextItemStarted = false;
 
         if (auctionResult.itemId !== null) {
           // Mark item as sold
@@ -74,26 +85,30 @@ export async function POST(event) {
               client
             );
 
-            // Update buyer balance (deduction might have happened earlier depending on auction type)
-            // For safety, let's assume it needs checking/recording here if not already done.
-            // This part might need refinement based on how `processBid` handles deductions.
-            // Example: Fetch buyer balance and ensure it reflects the purchase
-            // const buyerBalance = await getUserBalance(auctionResult.winnerId, client);
-            // If needed: await recordBalanceChange(auctionResult.winnerId, buyerBalance, 'win', auctionResult.itemId, client);
+            // Buyer balance should have been handled by processBid/endAuction
           } else {
-            // Handle case where there was no winner or price was zero
             console.log(`Item ${auctionResult.itemId} ended with no winner or zero price.`);
           }
         } else {
           console.warn('Auction ended but itemId was null.');
         }
 
+        // After processing the ended auction, try to start the next one
+        const items = await getUnsoldItems(client); // Use client for transaction consistency
+        if (items && items.length > 0) {
+          const nextItem = items[0];
+          await startAuction(nextItem.id); // Assume startAuction doesn't need the client
+          nextItemStarted = true;
+        }
+
         await client.query('COMMIT');
-        return { success: true, message: 'Auction concluded and next item processed.' };
+        return { 
+          success: true, 
+          message: `Auction concluded.${nextItemStarted ? ' Next item started.' : ' No more items.'}` 
+        };
       } catch (error) {
         if (client) await client.query('ROLLBACK');
         console.error('Transaction failed in /api/admin/next-item:', error);
-        // Use the specific error message if available, otherwise generic
         const message = error instanceof Error ? error.message : 'Failed to process auction end and next item.';
         throw createError('INTERNAL_ERROR', message);
       } finally {

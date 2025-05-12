@@ -122,11 +122,12 @@
 			nextItemStatus = await response.json();
 
 			if (nextItemStatus.success) {
-				nextMessage = 'Next item selected!';
+				nextMessage = nextItemStatus.message || 'Next item processed successfully!';
 
-				// Update the items remaining count
+				// Update the items remaining count (server response doesn't contain it)
+				// Fetching latest count might be better, but decrementing is simpler for now.
 				if (itemsRemaining > 0) {
-					itemsRemaining--;
+					itemsRemaining--; 
 				}
 
 				// Clear message after a delay
@@ -250,11 +251,10 @@
 </div>
 
 <style>
-	.auction-controls {
-		padding: 1rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-	}
+	/* Removed unused styles: */
+	/* .auction-controls { ... } */
+	/* .controls { ... } */
+	/* .status-message { ... } */
 	
 	.config-info {
 		margin: 1rem 0;
@@ -263,20 +263,7 @@
 	.penny-config {
 		margin: 1rem 0;
 		padding: 1rem;
-		background-color: #f8f9fa;
+		background-color: var(--bg-tertiary);
 		border-radius: 4px;
-	}
-	
-	.controls {
-		display: flex;
-		gap: 1rem;
-		margin: 1rem 0;
-	}
-	
-	.status-message {
-		margin: 1rem 0;
-		padding: 0.5rem;
-		border-radius: 4px;
-		background-color: #e2e3e5;
 	}
 </style>
