@@ -49,12 +49,26 @@ export interface PriceHistoryEntry {
 
 // Chart data point
 export interface ChartDataPoint {
-  x: Date;
-  y: number;
+  x?: Date | number;
+  y?: number;
+  timestamp?: string | number;
+  time?: string | number;
+  price?: number;
 }
 
 // Auction types
 export type AuctionType = 'english' | 'dutch' | 'firstprice' | 'vikrey' | 'chinese' | 'penny' | 'random';
+
+// Bid result interface
+export interface BidResult {
+  accepted: boolean;
+  message?: string;
+  newPrice?: number;
+  auctionEnded?: boolean;
+  timeRemaining?: number;
+  auctionType?: AuctionType;
+  newBalance?: number;
+}
 
 // Auction interface
 export interface Auction {

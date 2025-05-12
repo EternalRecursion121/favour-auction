@@ -1,61 +1,108 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { POST } from '../+server';
 import { createRequest, createRequestEvent, createCookies } from '../../../../../test/utils';
+import { mockDbClient } from '../../../../test/setup';
+import type { RequestEvent } from '@sveltejs/kit';
+import { SimpleRequestEvent } from '$lib/server/error';
 
-// Skip this test file as it's having issues with env imports
-describe.skip('Admin Auth API Endpoint', () => {
+// Mock the db module used by the endpoint
+vi.mock('$lib/server/db', async (importOriginal) => {
+  const original = await importOriginal();
+  return {
+    ...original,
+    db: mockDbClient,
+    checkAdminPassword: vi.fn(),
+  };
+});
+
+describe('/api/admin/auth POST', () => {
+  let event: Partial<RequestEvent>;
+
   beforeEach(() => {
-    // Reset mocks before each test
+    vi.resetAllMocks();
+    // Reset mock implementations
+    mockDbClient.query.mockResolvedValue({ rows: [] });
+    const { checkAdminPassword } = vi.mocked(await import('$lib/server/db'));
+    checkAdminPassword.mockResolvedValue(false);
+
+    // Basic mock event structure
+    event = {
+      request: {
+        json: vi.fn(),
+        headers: new Headers(),
+        formData: vi.fn(),
+      } as unknown as Request,
+      cookies: {
+        get: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
+      },
+      params: {},
+      url: new URL('http://localhost/api/admin/auth'),
+      fetch: vi.fn(),
+      getClientAddress: vi.fn(() => '127.0.0.1'),
+      locals: {} as App.Locals,
+      platform: undefined,
+      route: { id: '/api/admin/auth' },
+      setHeaders: vi.fn(),
+      isDataRequest: false,
+      isSubRequest: false,
+    };
   });
 
-  describe('POST /api/admin/auth', () => {
-    it('should authenticate with correct password', async () => {
-      const request = createRequest({ password: 'test_admin_password' });
-      const cookies = createCookies();
-      const event = createRequestEvent({ request, cookies });
+  it('should return 401 if password is wrong', async () => {
+    const { checkAdminPassword } = vi.mocked(await import('$lib/server/db'));
+    checkAdminPassword.mockResolvedValue(false);
+    (event.request as any).json.mockResolvedValue({ password: 'wrongpassword' });
 
-      const response = await POST(event);
-      const data = await response.json();
+    const response = await POST(event as RequestEvent);
+    const data = await response.json();
 
-      expect(response.status).toBe(200);
-      expect(data).toEqual({ authenticated: true });
-      expect(cookies.set).toHaveBeenCalledWith(
-        'admin_authenticated',
-        'true',
-        expect.objectContaining({
-          path: '/',
-          httpOnly: true,
-          sameSite: 'strict'
-        })
-      );
+    expect(response.status).toBe(401);
+    expect(data.message).toBe('Invalid password');
+    expect(event.cookies.set).not.toHaveBeenCalled();
+  });
+
+  it('should return 200 and set cookie if password is correct', async () => {
+    const { checkAdminPassword } = vi.mocked(await import('$lib/server/db'));
+    checkAdminPassword.mockResolvedValue(true);
+    (event.request as any).json.mockResolvedValue({ password: 'correctpassword' });
+
+    const response = await POST(event as RequestEvent);
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data.success).toBe(true);
+    expect(data.message).toBe('Authentication successful');
+    expect(event.cookies.set).toHaveBeenCalledWith('admin_authenticated', 'true', {
+      path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24 * 7
     });
+  });
 
-    it('should reject incorrect password', async () => {
-      const request = createRequest({ password: 'wrong_password' });
-      const cookies = createCookies();
-      const event = createRequestEvent({ request, cookies });
+  it('should return 400 if password is missing', async () => {
+    (event.request as any).json.mockResolvedValue({});
 
-      const response = await POST(event);
-      const data = await response.json();
+    const response = await POST(event as RequestEvent);
+    const data = await response.json();
 
-      expect(response.status).toBe(401);
-      expect(data).toEqual(expect.objectContaining({
-        error: true,
-        code: 'UNAUTHORIZED'
-      }));
-      expect(cookies.set).not.toHaveBeenCalled();
-    });
+    expect(response.status).toBe(400);
+    expect(data.code).toBe('INVALID_INPUT');
+    expect(event.cookies.set).not.toHaveBeenCalled();
+  });
 
-    it('should validate request data', async () => {
-      const request = createRequest({ }); // Missing password
-      const cookies = createCookies();
-      const event = createRequestEvent({ request, cookies });
+  it('should handle internal server errors', async () => {
+    const { checkAdminPassword } = vi.mocked(await import('$lib/server/db'));
+    checkAdminPassword.mockRejectedValue(new Error('Database connection failed'));
+    (event.request as any).json.mockResolvedValue({ password: 'somepassword' });
 
-      const response = await POST(event);
-      const data = await response.json();
+    const response = await POST(event as RequestEvent);
+    const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.error).toBe(true);
-    });
+    expect(response.status).toBe(500);
+    expect(data.code).toBe('INTERNAL_ERROR');
+    expect(data.message).toBe('An unexpected error occurred');
   });
 });

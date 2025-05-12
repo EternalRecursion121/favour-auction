@@ -13,6 +13,13 @@ export const mockDbClient = {
 };
 
 // Define the global jest object that the test files use
+declare global {
+  var jest: {
+    spyOn: typeof vi.spyOn;
+    fn: typeof vi.fn;
+  };
+}
+
 global.jest = {
   spyOn: vi.spyOn,
   fn: vi.fn

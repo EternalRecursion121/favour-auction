@@ -50,11 +50,15 @@ export type SimpleRequestEvent = {
   };
   params?: Record<string, string>;
   url?: URL;
+  fetch: typeof fetch;
+  getClientAddress: () => string;
+  locals: App.Locals;
+  platform: App.Platform;
 };
 
 // A utility function to handle errors in API routes
 export async function apiHandler<T>(
-  event: SimpleRequestEvent | RequestEvent,
+  event: Partial<SimpleRequestEvent> | RequestEvent,
   handler: () => Promise<T>,
   options: {
     authRequired?: boolean;
@@ -64,7 +68,7 @@ export async function apiHandler<T>(
   try {
     // Admin auth check if required
     if (options.adminRequired) {
-      const isAdmin = event.cookies.get('admin_authenticated') === 'true';
+      const isAdmin = event.cookies?.get('admin_authenticated') === 'true';
       if (!isAdmin) {
         return new Response(
           JSON.stringify(createError('UNAUTHORIZED', 'Admin authentication required')),

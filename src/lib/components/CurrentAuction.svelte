@@ -1,6 +1,7 @@
 <script lang="ts">
     import PriceChart from './PriceChart.svelte';
-    import type { Auction, User, ChartDataPoint, AuctionConfig } from '$lib/types';
+    import type { Auction, User, ChartDataPoint, AuctionConfig, BidResult } from '$lib/types';
+    import { onMount } from 'svelte';
     
     export let currentAuction: Auction | null;
     export let user: User;
@@ -10,8 +11,10 @@
     
     let bidAmount = 0;
     let bidMessage = '';
-    let bidStatus: 'success' | 'error' | '' = '';
+    let bidStatus: 'idle' | 'loading' | 'success' | 'error' = 'idle';
     let isBidding = false;
+    let auction: Auction | null = null;
+    let userId = 1; // TODO: Get from auth
 
     // Format auction type for display
     function formatAuctionType(type: string | null): string {
@@ -43,40 +46,69 @@
         return `${remainingSeconds}s`;
     }
 
-    async function handleBid() {
+    async function fetchCurrentAuction() {
         try {
-            isBidding = true;
-            bidMessage = '';
-            bidStatus = '';
-
-            // Call the provided bid handler
-            const result = await onPlaceBid(bidAmount);
-
-            // Set success message and status
-            if (result && result.success) {
-                bidStatus = 'success';
-                bidMessage = 'Bid placed successfully!';
-                bidAmount = 0; // Reset bid amount on success
-
-                // Clear message after a delay
-                setTimeout(() => {
-                    if (bidStatus === 'success') {
-                        bidMessage = '';
-                        bidStatus = '';
-                    }
-                }, 5000);
-            } else {
-                bidStatus = 'error';
-                bidMessage = result?.message || 'Failed to place bid. Please try again.';
-            }
+            const response = await fetch('/api/auctions/current');
+            auction = await response.json();
         } catch (error) {
-            console.error('Error placing bid:', error);
-            bidStatus = 'error';
-            bidMessage = 'Error placing bid. Please try again.';
-        } finally {
-            isBidding = false;
+            console.error('Failed to fetch current auction:', error);
         }
     }
+
+    async function placeBid() {
+        if (!auction?.item) return;
+        
+        bidStatus = 'loading';
+        bidMessage = '';
+        
+        try {
+            const response = await fetch('/api/auctions/bid', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    userId,
+                    itemId: auction.item.id,
+                    amount: bidAmount
+                })
+            });
+            
+            const result = await response.json() as BidResult;
+            
+            if (result.accepted) {
+                bidStatus = 'success';
+                bidMessage = 'Bid placed successfully!';
+                
+                // Update auction state
+                if (result.newPrice) {
+                    auction.currentPrice = result.newPrice;
+                }
+                
+                if (result.newBalance) {
+                    // TODO: Update user balance in UI
+                }
+                
+                if (result.auctionEnded) {
+                    // TODO: Handle auction end
+                }
+            } else {
+                bidStatus = 'error';
+                bidMessage = result.message || 'Failed to place bid. Please try again.';
+            }
+        } catch (error) {
+            bidStatus = 'error';
+            bidMessage = 'Failed to place bid. Please try again.';
+            console.error('Failed to place bid:', error);
+        }
+    }
+
+    onMount(() => {
+        fetchCurrentAuction();
+        // Poll for updates every 5 seconds
+        const interval = setInterval(fetchCurrentAuction, 5000);
+        return () => clearInterval(interval);
+    });
 </script>
 
 {#if currentAuction && currentAuction.active}
@@ -87,7 +119,7 @@
             </h2>
             <div class="flex items-center gap-2">
                 <span class="badge badge-blue font-mono text-xs">
-                    {currentAuction.auctionType}
+                    {formatAuctionType(currentAuction.auctionType)}
                 </span>
                 <span class="text-xs font-mono" style="color: var(--text-secondary);">
                     {formatTimeRemaining(currentAuction.timeRemaining)}
@@ -139,7 +171,7 @@
                     {/if}
                 </div>
                 
-                <form on:submit|preventDefault={handleBid} class="flex gap-2">
+                <form on:submit|preventDefault={placeBid} class="flex gap-2">
                     <input
                         type="number"
                         bind:value={bidAmount}
@@ -226,8 +258,10 @@
         <p style="color: var(--text-secondary);">
             Waiting for the admin to start the next auction...
         </p>
-        <div class="mt-4 font-mono">
-            <span class="text-2xl font-mono blink" style="color: var(--accent-purple);">_</span>
+        <div class="mt-4 font-mono animate-pulse">
+            <span class="text-sm font-mono" style="color: var(--accent-purple);">
+                Refreshing every few seconds...
+            </span>
         </div>
     </div>
 {/if} 
