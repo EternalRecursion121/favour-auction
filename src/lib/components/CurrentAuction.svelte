@@ -260,7 +260,7 @@
         </p>
         <div class="mt-4 font-mono animate-pulse">
             <span class="text-sm font-mono" style="color: var(--accent-purple);">
-                Refreshing every few seconds...
+                -
             </span>
         </div>
     </div>
