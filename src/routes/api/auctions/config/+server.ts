@@ -1,25 +1,19 @@
-import { getCurrentAuctionConfig } from '$lib/server/db';
-import { apiHandler, createError } from '$lib/server/error';
+import { getAuctionConfig } from '$lib/server/db';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
-export async function GET() {
-  return apiHandler(
-    {},
-    async () => {
-      const config = await getCurrentAuctionConfig();
-
-      if (!config || typeof config.auction_type === 'undefined') {
-        throw createError('INTERNAL_ERROR', 'Auction configuration is missing or invalid');
-      }
-
-      return {
-        auctionType: config.auction_type,
-        allowNewItems: config.allow_new_items,
-        pennyAuctionConfig: {
-          incrementAmount: config.penny_increment,
-          timeExtension: config.penny_time_extension,
-          minimumTimeRemaining: config.penny_min_time
-        }
-      };
+// GET current auction configuration (public)
+export const GET: RequestHandler = async () => {
+  try {
+    const config = await getAuctionConfig();
+    if (config) {
+      return json(config);
+    } else {
+      // This endpoint should ideally always find a config due to initialization
+      return json({ message: 'Auction configuration not found. Server may be initializing or encountered an error.' }, { status: 500 });
     }
-  );
-}
+  } catch (error) {
+    console.error('Error fetching auction config:', error);
+    return json({ message: 'Failed to fetch auction configuration' }, { status: 500 });
+  }
+};

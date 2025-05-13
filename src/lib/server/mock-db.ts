@@ -16,143 +16,117 @@ export const db = {
 // User-related queries
 export async function getUserByName(name: string) {
   console.warn('Using mock getUserByName');
+  if (name === 'testuser') {
+    return { id: 1, name: 'testuser', balance: 100 };
+  }
   return null;
 }
 
 export async function createUser(name: string) {
   console.warn('Using mock createUser');
-  return { id: 1, name, balance: 100 };
+  return { id: Math.floor(Math.random() * 1000), name, balance: 100 };
 }
 
 export async function getOrCreateUser(name: string) {
   console.warn('Using mock getOrCreateUser');
-  return { id: 1, name, balance: 100 };
+  let user = await getUserByName(name);
+  if (!user) {
+    user = await createUser(name);
+  }
+  return user;
 }
 
 export async function getUserBalance(userId: number) {
-  console.warn('Using mock getUserBalance');
-  return 100;
+  console.warn('Using mock getUserBalance for user:', userId);
+  return 100; // Default mock balance
 }
 
 export async function updateUserBalance(userId: number, newBalance: number) {
-  console.warn('Using mock updateUserBalance');
+  console.warn('Using mock updateUserBalance for user:', userId, 'to balance:', newBalance);
   return { id: userId, balance: newBalance };
 }
 
-export async function recordBalanceChange(userId: number, newBalance: number, reason: string, itemId: number) {
-  console.warn('Using mock recordBalanceChange');
-  return;
+export async function recordBalanceChange(userId: number, newBalance: number, reason: string, itemId: number | null) {
+  console.warn('Using mock recordBalanceChange:', { userId, newBalance, reason, itemId });
 }
 
 export async function getUserBalanceHistory(userId: number) {
-  console.warn('Using mock getUserBalanceHistory');
-  return [];
+  console.warn('Using mock getUserBalanceHistory for user:', userId);
+  return []; // Default empty history
 }
 
 // Item-related queries
-export async function getAllItems() {
-  console.warn('Using mock getAllItems');
-  return [];
+export async function getAllItems(soldOnly = false) {
+  console.warn('Using mock getAllItems, soldOnly:', soldOnly);
+  const mockItems = [
+    { id: 1, title: 'Mock Item 1', description: 'Desc 1', seller_id: 1, seller_name: 'testuser', sold: false, created_at: new Date().toISOString() },
+    { id: 2, title: 'Mock Item 2', description: 'Desc 2', seller_id: 1, seller_name: 'testuser', sold: true, created_at: new Date().toISOString() },
+  ];
+  return soldOnly ? mockItems.filter(item => item.sold) : mockItems;
 }
 
-export async function getItemById(itemId: number) {
-  console.warn('Using mock getItemById');
+export async function getItemById(id: number) {
+  console.warn('Using mock getItemById for ID:', id);
+  if (id === 1) {
+    return { id: 1, title: 'Mock Item 1', description: 'Desc 1', seller_id: 1, seller_name: 'testuser', sold: false, created_at: new Date().toISOString() };
+  }
   return null;
 }
 
 export async function createItem(title: string, description: string, sellerId: number) {
-  console.warn('Using mock createItem');
-  return {
-    id: 1,
-    title,
-    description,
-    seller_id: sellerId,
-    seller_name: 'Mock User',
-    sold: false,
-    created_at: new Date().toISOString()
-  };
+  console.warn('Using mock createItem:', { title, description, sellerId });
+  return { id: Math.floor(Math.random() * 1000), title, description, seller_id: sellerId, sold: false, created_at: new Date().toISOString() };
 }
 
 export async function markItemAsSold(itemId: number) {
-  console.warn('Using mock markItemAsSold');
-  return;
+  console.warn('Using mock markItemAsSold for item:', itemId);
 }
 
 export async function getUnsoldItems() {
   console.warn('Using mock getUnsoldItems');
-  return [];
+  return [{ id: 1, title: 'Mock Unsold Item', description: 'An item for testing', seller_id: 1, seller_name: 'testuser', sold: false, created_at: new Date().toISOString() }];
 }
 
 // Auction-related queries
-export async function getCurrentAuctionConfig() {
-  console.warn('Using mock getCurrentAuctionConfig');
+export async function getAuctionConfig() {
+  console.warn('Using mock getAuctionConfig');
   return {
-    auction_type: 'english',
-    allow_new_items: true,
-    penny_increment: 1,
-    penny_time_extension: 10,
-    penny_min_time: 30
+    auctionType: 'english',
+    allowNewItems: true,
+    pennyAuctionConfig: {
+      incrementAmount: 1,
+      timeExtension: 10,
+      minimumTimeRemaining: 30
+    }
   };
 }
 
-export async function updateAuctionConfig(
-  auctionType: string,
-  allowNewItems: boolean,
-  pennyIncrement?: number,
-  pennyTimeExtension?: number,
-  pennyMinTime?: number
-) {
-  console.warn('Using mock updateAuctionConfig');
-  return {
-    auction_type: auctionType,
-    allow_new_items: allowNewItems,
-    penny_increment: pennyIncrement || 1,
-    penny_time_extension: pennyTimeExtension || 10,
-    penny_min_time: pennyMinTime || 30
-  };
+export async function updateAuctionConfig(config: any) {
+  console.warn('Using mock updateAuctionConfig with:', config);
+  return config; // Return the passed config for simplicity
 }
 
-export async function recordAuctionResult(
-  itemId: number,
-  sellerId: number,
-  buyerId: number,
-  price: number,
-  auctionType: string
-) {
-  console.warn('Using mock recordAuctionResult');
-  return {
-    id: 1,
-    item_id: itemId,
-    seller_id: sellerId,
-    buyer_id: buyerId,
-    price,
-    auction_type: auctionType,
-    completed_at: new Date().toISOString()
-  };
+export async function recordAuctionResult(itemId: number, itemTitle: string, sellerId: number, sellerName: string, buyerId: number, buyerName: string, price: number, auctionType: string) {
+  console.warn('Using mock recordAuctionResult:', { itemId, itemTitle, sellerId, sellerName, buyerId, buyerName, price, auctionType });
 }
 
 export async function getAuctionResults() {
   console.warn('Using mock getAuctionResults');
-  return [];
+  return [
+    { id: 1, item: 'Mock Sold Item 1', seller: 'sellerUser', buyer: 'buyerUser', price: 50, auctionType: 'english' },
+  ];
 }
 
-export async function recordBid(userId: number, itemId: number, amount: number) {
-  console.warn('Using mock recordBid');
-  return {
-    id: 1,
-    user_id: userId,
-    item_id: itemId,
-    amount,
-    timestamp: new Date().toISOString()
-  };
+export async function recordBid(itemId: number, userId: number, amount: number) {
+  console.warn('Using mock recordBid:', { itemId, userId, amount });
 }
 
 export async function getBidsForItem(itemId: number) {
-  console.warn('Using mock getBidsForItem');
-  return [];
+  console.warn('Using mock getBidsForItem for item:', itemId);
+  return []; // Default empty bids
 }
 
-export async function resetAuction() {
-  console.warn('Using mock resetAuction');
+export async function resetAuctionData() {
+  console.warn('Using mock resetAuctionData');
   return true;
 }

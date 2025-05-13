@@ -1,57 +1,49 @@
-import { getAllItems, createItem, getCurrentAuctionConfig } from '$lib/server/db';
+import { getAllItems, createItem, getAuctionConfig } from '$lib/server/db';
 import { apiHandler, createError } from '$lib/server/error';
 import { itemSchema } from '$lib/server/schema';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import { authenticateUser } from '$lib/server/auth';
 
-export async function GET() {
-  return apiHandler(
-    {},
-    async () => {
-      const items = await getAllItems();
-      
-      return items.map(item => ({
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        seller: {
-          id: item.seller_id,
-          name: item.seller_name
-        },
-        sold: item.sold,
-        createdAt: item.created_at
-      }));
-    }
-  );
-}
+export const GET: RequestHandler = async () => {
+  try {
+    const items = await getAllItems();
+    return json(items);
+  } catch (error) {
+    console.error('Error fetching items:', error);
+    return json({ message: 'Failed to fetch items' }, { status: 500 });
+  }
+};
 
-export async function POST({ request }) {
-  return apiHandler(
-    { request },
-    async () => {
-      const body = await request.json();
-      const { title, description, sellerId } = itemSchema.parse(body);
-      
-      // Check if new items are allowed based on auction config
-      const config = await getCurrentAuctionConfig();
-      if (!config.allow_new_items) {
-        throw createError(
-          'FORBIDDEN', 
-          'New items cannot be added at this time'
-        );
-      }
-      
-      const item = await createItem(title, description, sellerId);
-      
-      return {
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        seller: {
-          id: item.seller_id,
-          name: 'Unknown' // In a real app, we'd join with the users table
-        },
-        sold: item.sold,
-        createdAt: item.created_at
-      };
+export const POST: RequestHandler = async ({ request }) => {
+  const authResult = await authenticateUser(request);
+  if (!authResult.authenticated || !authResult.userId) {
+    return json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const config = await getAuctionConfig();
+    if (!config?.allowNewItems) {
+      return json({ message: 'Adding new items is currently disabled' }, { status: 403 });
     }
-  );
-}
+
+    const body = await request.json();
+    if (!body.title || !body.sellerId) {
+      return json({ message: 'Missing required fields: title and sellerId' }, { status: 400 });
+    }
+    
+    if (body.sellerId !== authResult.userId) {
+        return json({ message: 'Seller ID does not match authenticated user' }, { status: 403 });
+    }
+
+    const newItem = await createItem(body.title, body.description || '', body.sellerId);
+    return json(newItem, { status: 201 });
+
+  } catch (error) {
+    console.error('Error creating item:', error);
+    if (error instanceof SyntaxError) {
+        return json({ message: 'Invalid request body' }, { status: 400 });
+    }
+    return json({ message: 'Failed to create item' }, { status: 500 });
+  }
+};
