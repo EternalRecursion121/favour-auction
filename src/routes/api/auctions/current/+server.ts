@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getCurrentAuction } from '../../../lib/server/db';
+import { getCurrentAuction } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async () => {
@@ -26,4 +26,4 @@ export const GET: RequestHandler = async () => {
     console.error('Error in /api/auctions/current GET:', e);
     return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
   }
-}; 
+};

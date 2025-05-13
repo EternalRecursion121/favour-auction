@@ -1,15 +1,10 @@
 import { json } from '@sveltejs/kit';
-import { processNextItem } from '../../../lib/server/db'; // db.processNextItem is currently a placeholder
+import { processNextItem } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async () => {
   // No authentication check as per user request
   try {
-    // TODO: db.processNextItem needs full implementation including:
-    // 1. Finalize current auction (if any): record result, update item status, seller/buyer balances.
-    // 2. Select next unsold item.
-    // 3. Create new auction entry for it.
-    // 4. Return { success, item (newly auctioned), remainingItems } as per API spec.
     const result = await processNextItem(); 
 
     // This response structure depends heavily on the actual implementation of processNextItem
@@ -27,4 +22,4 @@ export const POST: RequestHandler = async () => {
     console.error('Error in /api/admin/next-item POST:', e);
     return json({ success: false, message: 'Internal server error.', error: true, code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
   }
-}; 
+};

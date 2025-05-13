@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getItems, addItem as dbAddItem, getAuctionConfig } from '../../../lib/server/db';
+import { getItems, addItem as dbAddItem, getAuctionConfig } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 import type { Item } from '$lib/types';
 

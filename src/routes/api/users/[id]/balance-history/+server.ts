@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { getUserBalanceHistory } from '../../../../lib/server/db';
+import { getUserBalanceHistory } from '$lib/server/db';
 import type { RequestHandler } from './$types';
 
 export const GET: RequestHandler = async ({ params }) => {
@@ -27,4 +27,4 @@ export const GET: RequestHandler = async ({ params }) => {
     console.error(`Error in /api/users/${params.id}/balance-history GET:`, e);
     return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
   }
-}; 
+};

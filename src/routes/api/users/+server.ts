@@ -1,7 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { createUser, getUserByName } from '../../../lib/server/db';
+import { createUser, getUserByName, getAllUsers } from '$lib/server/db';
 import type { RequestHandler } from './$types';
-import { getAllUsers } from '$lib/server/db';
 import type { User } from '$lib/types';
 
 export const POST: RequestHandler = async ({ request }) => {

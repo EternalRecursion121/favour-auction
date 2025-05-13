@@ -1,5 +1,5 @@
 import { json } from '@sveltejs/kit';
-import { placeBid } from '../../../lib/server/db'; // db.placeBid is currently a placeholder
+import { placeBid } from '$lib/server/db'; // db.placeBid is currently a placeholder
 import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -60,4 +60,4 @@ export const POST: RequestHandler = async ({ request }) => {
     console.error('Error in /api/auctions/bid POST:', e);
     return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
   }
-}; 
+};
