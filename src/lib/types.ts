@@ -35,25 +35,26 @@ export interface Item {
 
 // Bid interface
 export interface Bid {
+  id?: number;
+  auctionId?: number;
   userId: number;
   userName: string;
   amount: number;
   timestamp: string;
 }
 
-// Price history entry
-export interface PriceHistoryEntry {
-  timestamp: string;
-  price: number;
-}
+// Price history entry - This might be redundant if Bid is used directly for charts
+// export interface PriceHistoryEntry {
+//   timestamp: string;
+//   price: number;
+// }
 
 // Chart data point
 export interface ChartDataPoint {
   x?: Date | number;
   y?: number;
-  timestamp?: string | number;
-  time?: string | number;
-  price?: number;
+  time?: string | number | Date;
+  value?: number;
 }
 
 // Auction types
@@ -84,13 +85,13 @@ export interface Auction {
   } | null;
   bids: Bid[];
   timeRemaining?: number | null;
-  bidHistory: PriceHistoryEntry[];
+  bidHistory: Bid[];
 }
 
 // Auction result interface
 export interface AuctionResult {
 	id: number;
-	item: string;
+	item: Item;
 	seller: string;
 	buyer: string;
 	price: number;

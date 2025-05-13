@@ -5,8 +5,9 @@
 		BalanceHistoryEntry, 
 		Item, 
 		Auction, 
-		AuctionConfig, 
-		ChartDataPoint
+		AuctionConfig,
+		BidResult,
+		Bid
 	} from '$lib/types';
 	
 	import Header from '$lib/components/Header.svelte';
@@ -31,7 +32,6 @@
 	let currentAuction: Auction | null = null;
 	let remainingItems = 0;
 	let userItems = 0;
-	let priceHistory: ChartDataPoint[] = [];
 	let auctionConfig: AuctionConfig | null = null;
 	let pollInterval: ReturnType<typeof setInterval>;
 
@@ -93,10 +93,15 @@
 
 	// Fetch user balance history
 	async function fetchUserData() {
-		if (!user.id) return;
+		if (!user || !user.id) return;
 
 		try {
-			// Get remaining items that the user is selling
+			const userDetailsResponse = await fetch(`/api/users/${user.id}`);
+			if (userDetailsResponse.ok) {
+				const userDetails: User = await userDetailsResponse.json();
+				user = { ...user, ...userDetails };
+			}
+
 			const itemsResponse = await fetch('/api/items');
 			if (itemsResponse.ok) {
 				const items = await itemsResponse.json() as Item[];
@@ -104,7 +109,6 @@
 				userItems = items.filter((item: Item) => item.seller.id === user.id && !item.sold).length;
 			}
 
-			// Get balance history
 			const balanceResponse = await fetch(`/api/users/${user.id}/balance-history`);
 			if (balanceResponse.ok) {
 				balanceHistory = await balanceResponse.json() as BalanceHistoryEntry[];
@@ -120,22 +124,13 @@
 			const response = await fetch('/api/auctions/current');
 			if (response.ok) {
 				currentAuction = await response.json() as Auction;
-				// Convert bid history into price history for chart
-				if (currentAuction?.bidHistory) {
-					priceHistory = currentAuction.bidHistory.map((bid: { timestamp: string; price: number }) => ({
-						x: new Date(bid.timestamp).getTime(),
-						y: bid.price
-					}));
-				} else {
-					priceHistory = [];
-				}
 			} else if (response.status === 404) {
 				// No active auction
 				currentAuction = null;
-				priceHistory = [];
 			}
 		} catch (error) {
 			console.error('Error fetching auction:', error);
+			currentAuction = null;
 		}
 	}
 
@@ -153,6 +148,11 @@
 
 	// Add a new item
 	async function addItem(title: string, description: string) {
+		if (!user || !user.id) {
+			addItemMessage = 'User not authenticated to add items.';
+			addItemSuccess = false;
+			return;
+		}
 		try {
 			const response = await fetch('/api/items', {
 				method: 'POST',
@@ -176,21 +176,23 @@
 					addItemMessage = '';
 				}, 3000);
 			} else {
-				const error = await response.json();
-				console.error('Add item error:', error);
+				const errorResult = await response.json();
+				console.error('Add item error:', errorResult);
 				addItemSuccess = false;
-				addItemMessage = error.message || 'Failed to add item';
+				addItemMessage = errorResult.message || 'Failed to add item';
 			}
 		} catch (error) {
 			console.error('Add item failed:', error);
 			addItemSuccess = false;
-			addItemMessage = 'Failed to add item';
+			addItemMessage = 'Client error: Failed to add item';
 		}
 	}
 
 	// Place a bid
-	async function placeBid(amount: number) {
-		if (!currentAuction || !amount || !currentAuction.item) return;
+	async function handlePlaceBid(itemId: number, bidAmount: number): Promise<BidResult | null> {
+		if (!currentAuction || !bidAmount || !user || !user.id) {
+			return { accepted: false, message: 'Invalid bid state or not authenticated.' };
+		}
 
 		try {
 			const response = await fetch('/api/auctions/bid', {
@@ -198,19 +200,29 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					userId: user.id,
-					itemId: currentAuction.item.id,
-					amount
+					itemId: itemId,
+					amount: bidAmount
 				})
 			});
 
-			const result = await response.json();
+			const result: BidResult = await response.json();
 			
-			if (response.ok) {
-				user.balance = result.newBalance;
+			if (response.ok && result.accepted) {
+				if (typeof result.newBalance === 'number') {
+					user.balance = result.newBalance;
+				}
 				await fetchCurrentAuction();
+				await fetchUserData();
+				return result;
+			} else {
+				console.error('Bid rejected or failed:', result.message || response.statusText);
+				await fetchUserData();
+				return result;
 			}
 		} catch (error) {
-			console.error('Bid failed:', error);
+			console.error('Bid submission failed:', error);
+			await fetchUserData();
+			return { accepted: false, message: 'Client error: Bid submission failed.' };
 		}
 	}
 </script>
@@ -232,7 +244,7 @@
 						<button 
 							on:click={() => showAddItemForm = true}
 							class="w-full py-2 px-4 btn btn-green font-mono"
-							disabled={auctionConfig && !auctionConfig.allowNewItems}
+							disabled={!auctionConfig || !auctionConfig.allowNewItems}
 						>
 							ADD NEW ITEM
 						</button>
@@ -253,15 +265,31 @@
 				
 				<!-- Middle Column: Current Auction -->
 				<div class="lg:col-span-2 space-y-6">
-					<CurrentAuction 
-						{currentAuction}
-						{user}
-						{priceHistory}
-						{auctionConfig}
-						onPlaceBid={placeBid}
-					/>
-					
-					<AuctionResults {currentAuction} {user} />
+					{#if currentAuction && currentAuction.active}
+						<CurrentAuction 
+							{currentAuction}
+							{user}
+							{auctionConfig}
+							onPlaceBid={handlePlaceBid}
+						/>
+					{:else if currentAuction && !currentAuction.active}
+						<AuctionResults {currentAuction} {user} />
+						<div class="card flex flex-col items-center justify-center p-10 min-h-[20rem] text-center">
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12 mb-4 text-text-tertiary opacity-50">
+								<path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" clip-rule="evenodd" />
+							</svg>
+							<h2 class="text-xl font-bold mb-2" style="color: var(--accent-blue);">Auction Ended</h2>
+							<p style="color: var(--text-secondary);">Waiting for the next auction to begin.</p>
+						</div>
+					{:else}
+						<div class="card flex flex-col items-center justify-center p-10 min-h-[20rem] text-center">
+							<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-12 h-12 mb-4 text-text-tertiary opacity-50">
+								<path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25ZM12.75 6a.75.75 0 0 0-1.5 0v6c0 .414.336.75.75.75h4.5a.75.75 0 0 0 0-1.5h-3.75V6Z" clip-rule="evenodd" />
+							</svg>
+							<h2 class="text-xl font-bold mb-2" style="color: var(--accent-blue);">No Active Auction</h2>
+							<p style="color: var(--text-secondary);">Please wait for the admin to start the next auction.</p>
+						</div>
+					{/if}
 				</div>
 			</div>
 		{/if}

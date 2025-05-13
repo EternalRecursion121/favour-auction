@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import type { AuctionConfig, ApiResponse } from '$lib/types';
+	import type { AuctionConfig } from '$lib/types';
 
 	export let itemsRemaining = 0;
 	export let config: AuctionConfig | null = null;
@@ -16,13 +16,27 @@
 	let nextMessage = '';
 
 	let isStarting = false;
-	let startStatus: ApiResponse<{ item?: { title: string }; remainingItems?: number }> | null = null;
+	interface StartNextItemSuccessResponse {
+		success: true;
+		item: { id: number; title: string; description: string; seller: {id: number; name: string} | null } | null;
+		remainingItems: number;
+		message?: string;
+	}
+	interface ErrorResponse {
+		success: false;
+		message: string;
+		error?: boolean;
+		code?: string;
+	}
+	type StartNextItemResponse = StartNextItemSuccessResponse | ErrorResponse;
+
+	let startOperationResult: StartNextItemResponse | null = null;
 	let startMessage = '';
 
 	async function handleStartAuction() {
 		if (itemsRemaining === 0 && !config?.allowNewItems) {
 			startMessage = 'No items available and new items are not allowed.';
-			startStatus = null;
+			startOperationResult = null;
 			return;
 		}
 
@@ -30,28 +44,31 @@
 			isStarting = true;
 			startMessage = '';
 
-			const response = await fetch('/api/admin/start-auction', {
+			const response = await fetch('/api/admin/next-item', {
 				method: 'POST'
 			});
 
-			const result = await response.json();
-			startStatus = result;
+			const result: StartNextItemResponse = await response.json();
+			startOperationResult = result;
 
 			if (result.success) {
-				startMessage = `Started auction for: ${result.data?.item?.title || 'Item'}`;
-
-				itemsRemaining = result.data?.remainingItems ?? (itemsRemaining > 0 ? itemsRemaining - 1 : 0);
-
-				setTimeout(() => {
-					startMessage = '';
-				}, 3000);
+				if (result.item) {
+					startMessage = `Started auction for: ${result.item.title}`;
+					dispatch('auctionStarted');
+					setTimeout(() => {
+						startMessage = '';
+					}, 3000);
+				} else {
+					startMessage = result.message || 'No more items to auction or action completed.';
+					dispatch('auctionStarted');
+				}
 			} else {
 				startMessage = result.message || 'Failed to start auction';
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Failed to start auction:', error);
-			startMessage = 'Failed to start auction';
-			startStatus = null;
+			startMessage = error.message || 'Failed to start auction (client error)';
+			startOperationResult = { success: false, message: startMessage, error: true };
 		} finally {
 			isStarting = false;
 		}
@@ -61,27 +78,22 @@
 		try {
 			isResetting = true;
 			resetMessage = '';
-
 			const response = await fetch('/api/admin/reset', {
 				method: 'POST'
 			});
-
-			const result = await response.json();
-
+			const result: { success: boolean, message?: string } = await response.json();
+			resetStatus = { success: result.success, message: result.message || (result.success ? 'Auction reset successfully' : 'Failed to reset auction') };
 			if (result.success) {
-				resetMessage = 'Auction reset successfully';
+				resetMessage = result.message || 'Auction reset successfully';
 				dispatch('reset');
-				
-				setTimeout(() => {
-					resetMessage = '';
-				}, 3000);
+				setTimeout(() => { resetMessage = ''; }, 3000);
 			} else {
 				resetMessage = result.message || 'Failed to reset auction';
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error('Failed to reset auction:', error);
-			resetMessage = 'Failed to reset auction';
-			resetStatus.success = false;
+			resetMessage = error.message || 'Failed to reset auction';
+			resetStatus = { success: false, message: resetMessage };
 		} finally {
 			isResetting = false;
 		}
@@ -89,41 +101,46 @@
 
 	async function handleNextItem() {
 		if (itemsRemaining === 0) {
-			nextMessage = 'No items available to process'; 
-			nextItemStatus.success = false;
+			nextMessage = 'No items available to process';
+			nextItemStatus = { success: false, message: nextMessage };
 			return;
 		}
 		
 		try {
 			isSelectingNext = true;
 			nextMessage = '';
-
 			const response = await fetch('/api/admin/next-item', {
 				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				}
+				headers: { 'Content-Type': 'application/json' }
 			});
 
-			nextItemStatus = await response.json();
+			const result: StartNextItemResponse = await response.json();
+			nextItemStatus.success = result.success;
 
-			if (nextItemStatus.success) {
-				nextMessage = nextItemStatus.message || 'Next item processed successfully!';
-
-				if (itemsRemaining > 0) {
-					itemsRemaining--; 
+			if (result.success) {
+				if (result.item) {
+					nextMessage = `Next item: ${result.item.title}`;
+					dispatch('nextItemProcessed');
+					setTimeout(() => { nextMessage = ''; }, 3000);
+				} else {
+					nextMessage = result.message || 'No more items available.';
+					dispatch('nextItemProcessed');
 				}
-
-				setTimeout(() => {
-					nextMessage = '';
-				}, 3000);
 			} else {
-				nextMessage = nextItemStatus.message || 'Failed to select next item';
+				nextMessage = result.message || 'Failed to select next item';
 			}
-		} catch (error) {
+			if (!result.success) {
+				nextItemStatus.message = result.message;
+			} else if (result.item === null && result.message) {
+				nextItemStatus.message = result.message;
+			} else if (result.item) {
+				nextItemStatus.message = `Next item: ${result.item.title}`;
+			}
+
+		} catch (error: any) {
 			console.error('Error selecting next item:', error);
-			nextMessage = 'Error connecting to server';
-			nextItemStatus.success = false;
+			nextMessage = error.message || 'Error connecting to server';
+			nextItemStatus = { success: false, message: nextMessage };
 		} finally {
 			isSelectingNext = false;
 		}
@@ -189,7 +206,7 @@
 					{/if}
 				</button>
 				{#if startMessage}
-					<p class="text-sm text-center mt-1 {startStatus && startStatus.success ? 'text-green-400' : 'text-red-400'}">{startMessage}</p>
+					<p class="text-sm text-center mt-1 {startOperationResult && startOperationResult.success ? 'text-green-400' : 'text-red-400'}">{startMessage}</p>
 				{/if}
 			</div>
 

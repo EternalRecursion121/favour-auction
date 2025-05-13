@@ -1,27 +1,18 @@
-import { resetAuction } from '$lib/server/db';
-import { apiHandler, createError } from '$lib/server/error';
+import { json } from '@sveltejs/kit';
+import { resetAuction } from '../../../lib/server/db';
+import type { RequestHandler } from './$types';
 
-export async function POST({ cookies }) {
-  return apiHandler(
-    { cookies },
-    async () => {
-      // Check admin auth
-      const isAdmin = cookies.get('admin_authenticated') === 'true';
-      if (!isAdmin) {
-        throw createError('UNAUTHORIZED', 'Admin authentication required');
-      }
-      
-      const success = await resetAuction();
-      
-      if (!success) {
-        throw createError('INTERNAL_ERROR', 'Failed to reset auction');
-      }
-      
-      return {
-        success: true,
-        message: 'Auction reset successfully'
-      };
-    },
-    { adminRequired: true }
-  );
-}
+export const POST: RequestHandler = async () => {
+  // No authentication check as per user request
+  try {
+    const success = await resetAuction();
+    if (success) {
+      return json({ success: true, message: 'Auction reset successfully.' });
+    } else {
+      return json({ success: false, message: 'Failed to reset auction.', error: true, code: 'RESET_FAILED' }, { status: 500 });
+    }
+  } catch (e: any) {
+    console.error('Error in /api/admin/reset POST:', e);
+    return json({ success: false, message: 'Internal server error.', error: true, code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
+  }
+}; 

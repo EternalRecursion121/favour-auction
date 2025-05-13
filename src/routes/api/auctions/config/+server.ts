@@ -1,19 +1,17 @@
-import { getAuctionConfig } from '$lib/server/db';
 import { json } from '@sveltejs/kit';
+import { getAuctionConfig } from '../../../lib/server/db';
 import type { RequestHandler } from './$types';
 
-// GET current auction configuration (public)
 export const GET: RequestHandler = async () => {
   try {
     const config = await getAuctionConfig();
-    if (config) {
-      return json(config);
-    } else {
-      // This endpoint should ideally always find a config due to initialization
-      return json({ message: 'Auction configuration not found. Server may be initializing or encountered an error.' }, { status: 500 });
-    }
-  } catch (error) {
-    console.error('Error fetching auction config:', error);
-    return json({ message: 'Failed to fetch auction configuration' }, { status: 500 });
+    // API Spec: { auctionType, allowNewItems, pennyAuctionConfig: { incrementAmount, timeExtension, minimumTimeRemaining } }
+    // db.getAuctionConfig() should return this structure.
+    // Ensure pennyAuctionConfig is an object, not a JSON string, if it comes from DB as string.
+    // (Handled in db.ts)
+    return json(config);
+  } catch (e: any) {
+    console.error('Error in /api/auctions/config GET:', e);
+    return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
   }
-};
+}; 

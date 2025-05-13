@@ -1,38 +1,17 @@
-import { getAuctionResults } from '$lib/server/db';
-import { apiHandler, createError } from '$lib/server/error';
+import { json } from '@sveltejs/kit';
+import { getAuctionResults as dbGetAuctionResults } from '../../../../lib/server/db';
+import type { RequestHandler } from './$types';
 
-export async function GET({ cookies }) {
-  return apiHandler(
-    { cookies },
-    async () => {
-      // Check admin auth
-      const isAdmin = cookies.get('admin_authenticated') === 'true';
-      if (!isAdmin) {
-        throw createError('UNAUTHORIZED', 'Admin authentication required');
-      }
-      
-      const results = await getAuctionResults();
-      
-      return results.map(r => ({
-        id: r.id,
-        item: {
-          id: r.item_id,
-          title: r.item_title,
-          description: r.item_description
-        },
-        seller: {
-          id: r.seller_id,
-          name: r.seller_name
-        },
-        buyer: {
-          id: r.buyer_id,
-          name: r.buyer_name
-        },
-        price: r.price,
-        auctionType: r.auction_type,
-        completedAt: r.completed_at
-      }));
-    },
-    { adminRequired: true }
-  );
-}
+export const GET: RequestHandler = async () => {
+  // No authentication check as per user request
+  try {
+    const results = await dbGetAuctionResults();
+    // API Spec for AuctionResult object:
+    // { id, item: {id, title, description}, seller: {id, name}, buyer: {id, name}, price, auctionType, completedAt }
+    // db.getAuctionResults() is expected to return this structure (with the type cast for item object).
+    return json(results);
+  } catch (e: any) {
+    console.error('Error in /api/admin/results GET:', e);
+    return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
+  }
+}; 

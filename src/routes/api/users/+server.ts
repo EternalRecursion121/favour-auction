@@ -1,51 +1,46 @@
 import { json } from '@sveltejs/kit';
-import { getOrCreateUser } from '$lib/server/db';
-import { apiHandler, createError } from '$lib/server/error';
-import { userSchema } from '$lib/server/schema';
+import { createUser, getUserByName } from '../../../lib/server/db';
+import type { RequestHandler } from './$types';
+import { getAllUsers } from '$lib/server/db';
+import type { User } from '$lib/types';
 
-export async function POST({ request }) {
-  return apiHandler(
-    { request },
-    async () => {
-      const body = await request.json();
-      const { name } = userSchema.parse(body);
-      
-      if (!name) {
-        throw createError('INVALID_INPUT', 'Name is required');
-      }
-      
-      try {
-        const user = await getOrCreateUser(name);
-        
-        // Check if user exists and has required properties
-        if (!user || typeof user !== 'object') {
-          throw createError('INTERNAL_ERROR', 'Failed to create or retrieve user');
-        }
-        
-        return {
-          id: user.id || 0,
-          name: user.name || name,
-          balance: user.balance || 100,
-          // These would be calculated from the DB in a real implementation
-          itemsSold: 0,
-          itemsBought: 0
-        };
-      } catch (error) {
-        console.error('Error in user creation/retrieval:', error);
-        // Fallback user object for deployment
-        return {
-          id: 1,  // Default ID
-          name: name,
-          balance: 100,
-          itemsSold: 0,
-          itemsBought: 0
-        };
-      }
+export const POST: RequestHandler = async ({ request }) => {
+  try {
+    const body = await request.json();
+    const { name } = body;
+
+    if (!name || typeof name !== 'string') {
+      return json({ error: true, message: 'User name is required and must be a string.', code: 'INVALID_INPUT' }, { status: 400 });
     }
-  );
-}
 
-export async function GET() {
-  // This endpoint would list all users - only needed for admin
-  return json({ message: 'Not implemented' });
-}
+    let user = await getUserByName(name);
+    if (!user) {
+      user = await createUser(name);
+    }
+    
+    // The user object from db functions should match the API spec response
+    // { id, name, balance, itemsSold, itemsBought }
+    return json(user, { status: user ? 200 : 201 }); // 200 if found, 201 if created
+
+  } catch (e: any) {
+    // Catch if request.json() fails or other errors
+    if (e instanceof SyntaxError) {
+      return json({ error: true, message: 'Invalid JSON in request body.', code: 'INVALID_INPUT' }, { status: 400 });
+    }
+    console.error('Error in /api/users POST:', e);
+    return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
+  }
+}; 
+
+export const GET: RequestHandler = async () => {
+    try {
+        const users: Pick<User, 'id' | 'name' | 'balance'>[] = await getAllUsers();
+        return json(users);
+    } catch (error) {
+        console.error('Error fetching users for admin:', error);
+        return json(
+            { success: false, message: 'Failed to retrieve users.' },
+            { status: 500 }
+        );
+    }
+};

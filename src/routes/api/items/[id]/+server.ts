@@ -1,40 +1,27 @@
-import { getItemById, getBidsForItem } from '$lib/server/db';
-import { apiHandler, createError } from '$lib/server/error';
+import { json } from '@sveltejs/kit';
+import { getItemByIdWithHistory } from '../../../lib/server/db';
+import type { RequestHandler } from './$types';
 
-export async function GET({ params }) {
-  return apiHandler(
-    { params },
-    async () => {
-      const itemId = parseInt(params.id);
-      if (isNaN(itemId)) {
-        throw createError('INVALID_INPUT', 'Invalid item ID');
-      }
-      
-      const item = await getItemById(itemId);
-      if (!item) {
-        throw createError('NOT_FOUND', `Item with ID ${itemId} not found`);
-      }
-      
-      // Get bid history for this item
-      const bids = await getBidsForItem(itemId);
-      
-      return {
-        id: item.id,
-        title: item.title,
-        description: item.description,
-        seller: {
-          id: item.seller_id,
-          name: item.seller_name
-        },
-        sold: item.sold,
-        createdAt: item.created_at,
-        auctionHistory: bids.map(bid => ({
-          userId: bid.user_id,
-          userName: bid.user_name,
-          amount: bid.amount,
-          timestamp: bid.timestamp
-        }))
-      };
+export const GET: RequestHandler = async ({ params }) => {
+  try {
+    const itemId = parseInt(params.id, 10);
+
+    if (isNaN(itemId)) {
+      return json({ error: true, message: 'Item ID must be a valid number.', code: 'INVALID_INPUT' }, { status: 400 });
     }
-  );
-}
+
+    const itemDetails = await getItemByIdWithHistory(itemId);
+
+    if (!itemDetails) {
+      return json({ error: true, message: 'Item not found.', code: 'NOT_FOUND' }, { status: 404 });
+    }
+    
+    // API Spec: { id, title, description, seller: {id, name}, sold, createdAt, auctionHistory: [{userId, userName, amount, timestamp}] }
+    // db.getItemByIdWithHistory should return this structure.
+    return json(itemDetails);
+
+  } catch (e: any) {
+    console.error(`Error in /api/items/${params.id} GET:`, e);
+    return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
+  }
+}; 

@@ -1,56 +1,55 @@
 import { json } from '@sveltejs/kit';
-import { updateAuctionConfig, getAuctionConfig } from '$lib/server/db';
-import { apiHandler, createError } from '$lib/server/error';
-import { auctionConfigSchema } from '$lib/server/schema';
-import type { AuctionConfig } from '$lib/types';
+import { updateAuctionConfig, getAuctionConfig } from '../../../../lib/server/db';
 import type { RequestHandler } from './$types';
-import { authenticateAdmin } from '$lib/server/auth';
+import type { AuctionConfig } from '$lib/types';
 
-// GET handler to fetch current configuration
-export const GET: RequestHandler = async ({ request }) => {
-	if (!authenticateAdmin(request)) {
-		return json({ message: 'Unauthorized' }, { status: 401 });
-	}
-	try {
-		const config = await getAuctionConfig();
-		if (config) {
-			return json(config);
-		} else {
-			return json({ message: 'Auction configuration not found' }, { status: 404 });
-		}
-	} catch (error) {
-		console.error('Error fetching auction config:', error);
-		return json({ message: 'Failed to fetch auction configuration' }, { status: 500 });
-	}
-};
+export const PUT: RequestHandler = async ({ request }) => {
+  // No authentication check as per user request
+  try {
+    const body = await request.json() as Partial<AuctionConfig>;
 
-// PUT handler to update configuration
-export const POST: RequestHandler = async ({ request }) => {
-	if (!authenticateAdmin(request)) {
-		return json({ message: 'Unauthorized' }, { status: 401 });
-	}
-	try {
-		const body = await request.json();
-		const { auctionType, allowNewItems, pennyAuctionConfig } = auctionConfigSchema.parse(body);
+    // Validate the incoming configuration.
+    // A more robust solution would validate each field type from body according to AuctionConfig type.
+    // For example, check that body.auctionType is one of the allowed enum values.
 
-		const updatedConfig = await updateAuctionConfig(
-			auctionType,
-			allowNewItems,
-			pennyAuctionConfig?.incrementAmount,
-			pennyAuctionConfig?.timeExtension,
-			pennyAuctionConfig?.minimumTimeRemaining
-		);
+    const currentConfig = await getAuctionConfig(); // This always returns a full config object
+    
+    // Construct new config, taking values from body if present, else from currentConfig
+    const newConfigData: AuctionConfig = {
+      auctionType: body.auctionType !== undefined ? body.auctionType : currentConfig.auctionType,
+      allowNewItems: body.allowNewItems !== undefined ? body.allowNewItems : currentConfig.allowNewItems,
+      pennyAuctionConfig: {
+        incrementAmount: body.pennyAuctionConfig?.incrementAmount !== undefined
+          ? body.pennyAuctionConfig.incrementAmount
+          : currentConfig.pennyAuctionConfig!.incrementAmount,
+        timeExtension: body.pennyAuctionConfig?.timeExtension !== undefined
+          ? body.pennyAuctionConfig.timeExtension
+          : currentConfig.pennyAuctionConfig!.timeExtension,
+        minimumTimeRemaining: body.pennyAuctionConfig?.minimumTimeRemaining !== undefined
+          ? body.pennyAuctionConfig.minimumTimeRemaining
+          : currentConfig.pennyAuctionConfig!.minimumTimeRemaining,
+      }
+    };
 
-		if (updatedConfig) {
-			return json(updatedConfig);
-		} else {
-			return json({ message: 'Failed to update auction configuration' }, { status: 500 });
-		}
-	} catch (error) {
-		console.error('Error updating auction config:', error);
-		if (error instanceof SyntaxError) {
-			return json({ message: 'Invalid request body' }, { status: 400 });
-		}
-		return json({ message: 'Failed to update auction configuration' }, { status: 500 });
-	}
-};
+    // Further validation for auctionType enum can be added here if needed.
+    const allowedTypes = ['english', 'dutch', 'firstprice', 'vikrey', 'chinese', 'penny', 'random'];
+    if (!allowedTypes.includes(newConfigData.auctionType)) {
+        return json({ error: true, message: `Invalid auction type. Must be one of: ${allowedTypes.join(', ')}.`, code: 'INVALID_INPUT' }, { status: 400 });
+    }
+
+    const updatedConfig = await updateAuctionConfig(newConfigData);
+
+    if (updatedConfig) {
+      return json({ success: true, config: updatedConfig });
+    } else {
+      return json({ success: false, message: 'Failed to update auction configuration.', error: true, code: 'CONFIG_UPDATE_FAILED' }, { status: 500 });
+    }
+
+  } catch (e: any) {
+    if (e instanceof SyntaxError) {
+      return json({ error: true, message: 'Invalid JSON in request body.', code: 'INVALID_INPUT' }, { status: 400 });
+    }
+    console.error('Error in /api/admin/config PUT:', e);
+    return json({ success: false, message: 'Internal server error.', error: true, code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
+  }
+}; 

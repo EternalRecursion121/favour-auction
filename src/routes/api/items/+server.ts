@@ -1,42 +1,50 @@
-import { getAllItems, createItem, getAuctionConfig } from '$lib/server/db';
-import { apiHandler, createError } from '$lib/server/error';
-import { itemSchema } from '$lib/server/schema';
 import { json } from '@sveltejs/kit';
+import { getItems, addItem as dbAddItem, getAuctionConfig } from '../../../lib/server/db';
 import type { RequestHandler } from './$types';
+import type { Item } from '$lib/types';
 
 export const GET: RequestHandler = async () => {
   try {
-    const items = await getAllItems();
+    const items = await getItems();
+    // API Spec: [{ id, title, description, seller: {id, name}, sold, createdAt }]
+    // db.getItems() should already return this structure.
     return json(items);
-  } catch (error) {
-    console.error('Error fetching items:', error);
-    return json({ message: 'Failed to fetch items' }, { status: 500 });
+  } catch (e: any) {
+    console.error('Error in /api/items GET:', e);
+    return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
   }
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-
-
   try {
+    // Check auction config if new items are allowed
     const config = await getAuctionConfig();
-    if (!config?.allowNewItems) {
-      return json({ message: 'Adding new items is currently disabled' }, { status: 403 });
+    if (!config.allowNewItems) {
+      return json({ error: true, message: 'Adding new items is currently disabled.', code: 'FORBIDDEN' }, { status: 403 });
     }
 
     const body = await request.json();
-    if (!body.title || !body.sellerId) {
-      return json({ message: 'Missing required fields: title and sellerId' }, { status: 400 });
-    }
-    
+    const { title, description, sellerId } = body;
 
-    const newItem = await createItem(body.title, body.description || '', body.sellerId);
+    if (!title || typeof title !== 'string' || !sellerId || typeof sellerId !== 'number') {
+      return json({ error: true, message: 'Title (string) and sellerId (number) are required.', code: 'INVALID_INPUT' }, { status: 400 });
+    }
+    // Description is optional, but if provided, should be a string
+    if (description && typeof description !== 'string') {
+      return json({ error: true, message: 'Description must be a string if provided.', code: 'INVALID_INPUT' }, { status: 400 });
+    }
+
+    const newItem: Item = await dbAddItem(title, description || '', sellerId);
+    
+    // API Spec: { id, title, description, seller: {id, name}, sold, createdAt }
+    // dbAddItem should return this structure.
     return json(newItem, { status: 201 });
 
-  } catch (error) {
-    console.error('Error creating item:', error);
-    if (error instanceof SyntaxError) {
-        return json({ message: 'Invalid request body' }, { status: 400 });
+  } catch (e: any) {
+    if (e instanceof SyntaxError) {
+      return json({ error: true, message: 'Invalid JSON in request body.', code: 'INVALID_INPUT' }, { status: 400 });
     }
-    return json({ message: 'Failed to create item' }, { status: 500 });
+    console.error('Error in /api/items POST:', e);
+    return json({ error: true, message: 'Internal server error.', code: 'INTERNAL_ERROR', details: e.message }, { status: 500 });
   }
-};
+}; 

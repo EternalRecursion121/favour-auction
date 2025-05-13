@@ -221,12 +221,28 @@ Retrieves balance history for a specific user.
     "timestamp": "string (ISO date)",
     "balance": "number",
     "reason": "string (bid|win|sell)",
-    "itemId": "number"
+    "itemId": "number",
+    "itemTitle": "string (optional, title of the item related to the transaction)"
   }
 ]
 ```
 
 ## Admin Controls
+
+### `GET /api/admin/auth`
+Checks perceived admin authentication status, primarily for client-side flow.
+
+**Response:**
+```json
+{
+  "authenticated": "boolean"
+}
+```
+
+**Notes:**
+- This endpoint supports client-side checks (like in `src/routes/admin/+page.svelte`) to determine if full authentication is immediately needed.
+- Consistent with the "No cookie-based sessions for admin access" principle, if this `GET` request is made without a valid, client-managed authentication token (which would have been obtained from a `POST /api/admin/auth` and stored by the client), this endpoint should return `{"authenticated": false}`.
+- Actual authentication must be performed via `POST /api/admin/auth`. Other admin-protected endpoints would require that authentication to be enforced, potentially via a token mechanism established after the `POST` login.
 
 ### `POST /api/admin/auth`
 Authenticates admin access.
@@ -373,6 +389,30 @@ Taylor bought "Cooking Class" from Jordan for 42 points (Dutch)
 - Requires admin authentication
 - Returns plain text format suitable for pasting into Discord
 
+### `GET /api/admin/users`
+Retrieves a list of all registered users with their ID, name, and current balance.
+
+**Response:**
+```json
+[
+  {
+    "id": 1,
+    "name": "User One",
+    "balance": 1000
+  },
+  {
+    "id": 2,
+    "name": "User Two",
+    "balance": 750
+  }
+]
+```
+
+**Notes:**
+- Requires admin authentication
+- Returns an empty array if no users are registered
+- Returns 500 if there's an error retrieving users
+
 ## Data Models
 
 ### User
@@ -381,6 +421,8 @@ Taylor bought "Cooking Class" from Jordan for 42 points (Dutch)
   id: number;
   name: string;
   balance: number;
+  itemsSold: number;
+  itemsBought: number;
 }
 ```
 
