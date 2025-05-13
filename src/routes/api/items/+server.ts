@@ -3,7 +3,6 @@ import { apiHandler, createError } from '$lib/server/error';
 import { itemSchema } from '$lib/server/schema';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { authenticateUser } from '$lib/server/auth';
 
 export const GET: RequestHandler = async () => {
   try {
@@ -16,10 +15,7 @@ export const GET: RequestHandler = async () => {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-  const authResult = await authenticateUser(request);
-  if (!authResult.authenticated || !authResult.userId) {
-    return json({ message: 'Unauthorized' }, { status: 401 });
-  }
+
 
   try {
     const config = await getAuctionConfig();
@@ -32,9 +28,6 @@ export const POST: RequestHandler = async ({ request }) => {
       return json({ message: 'Missing required fields: title and sellerId' }, { status: 400 });
     }
     
-    if (body.sellerId !== authResult.userId) {
-        return json({ message: 'Seller ID does not match authenticated user' }, { status: 403 });
-    }
 
     const newItem = await createItem(body.title, body.description || '', body.sellerId);
     return json(newItem, { status: 201 });
